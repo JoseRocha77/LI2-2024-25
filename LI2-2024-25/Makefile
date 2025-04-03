@@ -3,11 +3,11 @@ CFLAGS = -Wall -Wextra -pedantic -O1 -fsanitize=address -fno-omit-frame-pointer 
 LDFLAGS = -lm
 
 SOURCES = src/main.c src/jogo.c 
-OBJECTS = $(SOURCES:.c=.o)
+OBJECTS = src/main.o src/jogo.o
 EXECUTABLE = jogo
 
 TEST_SOURCES = src/testar.c src/jogo.c
-TEST_OBJECTS = $(TEST_SOURCES:.c=.o)
+TEST_OBJECTS = src/testar.o src/jogo.o
 TEST_EXECUTABLE = testar
 
 .PHONY: all jogo testar clean
@@ -22,12 +22,14 @@ testar: $(TEST_OBJECTS)
 	./$(TEST_EXECUTABLE)
 	
 gcov: clean
-	$(CC) -fprofile-arcs -ftest-coverage $(TEST_SOURCES) -o $(TEST_EXECUTABLE) $(LDFLAGS)
+	$(CC) -fprofile-arcs -ftest-coverage $(SOURCES) $(TEST_SOURCES) -o $(TEST_EXECUTABLE) $(LDFLAGS)
 	./$(TEST_EXECUTABLE)
-	gcov $(SOURCES)
+	gcov $(SOURCES) $(TEST_SOURCES)
+
 
 %.o: %.c
-	$(CC) -c -o $@ $< $(CFLAGS)
+	$(CC) -c $< -o $@ $(CFLAGS) $(LDFLAGS)
+
 
 clean:
 	rm -f $(OBJECTS) $(TEST_OBJECTS) $(EXECUTABLE) $(TEST_EXECUTABLE) *.gcda *.gcno *.gcov
