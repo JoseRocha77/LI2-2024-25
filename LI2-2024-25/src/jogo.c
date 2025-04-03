@@ -35,7 +35,7 @@ Jogo* carregarJogo(char *arquivo) {
         return NULL;
     }
 
-    // Aloca memória para cada linha do tabuleiro
+    // Aloca memória para cada linha do tabuleiro e lê cada caractere
     for (int i = 0; i < jogo->linhas; i++) {
         jogo->tabuleiro[i] = malloc((jogo->colunas + 1) * sizeof(char)); // +1 para '\0'
         if (!jogo->tabuleiro[i]) {
@@ -49,22 +49,42 @@ Jogo* carregarJogo(char *arquivo) {
             return NULL;
         }
 
-        // Lê a linha do tabuleiro (considerando que cada linha tem colunas caracteres)
-        if (fgets(jogo->tabuleiro[i], jogo->colunas + 1, input) == NULL) {
-            printf("Erro ao ler linha %d do tabuleiro.\n", i);
-            for (int j = 0; j <= i; j++) {
-                free(jogo->tabuleiro[j]);
+        // Lê cada caractere individualmente para garantir que não há problemas
+        for (int j = 0; j < jogo->colunas; j++) {
+            int ch = fgetc(input);
+            if (ch == EOF || ch == '\n') {
+                if (j < jogo->colunas - 1) {
+                    j--;
+                    continue;
+                }
+            } else {
+                jogo->tabuleiro[i][j] = (char)ch;
             }
-            free(jogo->tabuleiro);
-            free(jogo);
-            fclose(input);
-            return NULL;
         }
-
-        // Remover o caractere de nova linha, se presente
         jogo->tabuleiro[i][jogo->colunas] = '\0';
+
+        int ch;
+        while ((ch = fgetc(input)) != EOF && ch != '\n');
     }
 
     fclose(input);
     return jogo;
+}
+
+void desenhaJogo (Jogo *jogo) {
+    //Desenhar letras correspondente às colunas
+    printf("  ");
+    for (int c = 0; c < jogo->colunas; c++) {
+        printf("%c ", 'A' + c);
+    }
+    printf("\n");
+    //Desenhar número da linha e desenhar linhas
+    for (int l = 0; l < jogo->linhas; l++) {
+        printf("%d ", l +1);
+
+        for (int c = 0; c < jogo->colunas; c++) {
+            printf("%c ", jogo->tabuleiro[l][c]);
+        }
+        printf("\n");
+    }
 }
