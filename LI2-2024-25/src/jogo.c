@@ -88,3 +88,18 @@ void desenhaJogo (Jogo *jogo) {
         printf("\n");
     }
 }
+
+
+int pintarBranco (Jogo *jogo, char *coordenada){
+    int coluna = coordenada[0] -'a', linha = coordenada[1] - '1';
+    jogo->tabuleiro[coluna][linha] = (jogo->tabuleiro[coluna][linha]) - ' ';
+
+    return 0;
+}
+
+int riscar (Jogo *jogo, char *coordenada){
+    int coluna = coordenada[0] -'a', linha = coordenada[1] - '1';
+    jogo->tabuleiro[coluna][linha] = '#';
+
+    return 0;
+}
