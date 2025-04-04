@@ -75,12 +75,12 @@ void desenhaJogo (Jogo *jogo) {
     //Desenhar letras correspondente às colunas
     printf("  ");
     for (int c = 0; c < jogo->colunas; c++) {
-        printf("%c ", 'A' + c);
+        printf("_%c", 'a' + c);
     }
     printf("\n");
     //Desenhar número da linha e desenhar linhas
     for (int l = 0; l < jogo->linhas; l++) {
-        printf("%d ", l +1);
+        printf("%d| ", l +1);
 
         for (int c = 0; c < jogo->colunas; c++) {
             printf("%c ", jogo->tabuleiro[l][c]);
@@ -107,24 +107,42 @@ int riscar (Jogo *jogo, char *coordenada){
 int processarComandos(Jogo *jogo, char *comando) {
     if (!jogo || !comando) return -1;
 
-    // Comando para pintar de branco
-    if (comando[0] == 'b' && isalpha(comando[1]) && isdigit(comando[2]) && comando[3] == '\0') {
-        comando[1] = tolower(comando[1]);
-        return pintarBranco(jogo, &comando[1]);
-    }
-    
-    // Comando para riscar
-    if (comando[0] == 'r' && isalpha(comando[1]) && isdigit(comando[2]) && comando[3] == '\0') {
-        comando[1] = tolower(comando[1]);
-        return riscar(jogo, &comando[1]);
-    }
-    
     // Comando para sair do jogo
     if (strcmp(comando, "s") == 0) {
         printf("Saindo do jogo...\n");
         return 1;
     }
+
+    // Verifica se o comando tem espaço entre a letra e o número
+    char tipoComando;
+    char posicao[3];
+    if (sscanf(comando, "%c %2s", &tipoComando, posicao) != 2) {
+        printf("Comando inválido: %s\n", comando);
+        printf("Comandos válidos:\n");
+        printf("  b <posicao>   - Pintar de branco\n");
+        printf("  r <posicao>   - Riscar\n");
+        printf("  s             - Sair do jogo\n");
+        return -1;
+    }
+
+    // Comando para pintar de branco
+    if (tipoComando == 'b' && isalpha(posicao[0]) && isdigit(posicao[1]) && posicao[2] == '\0') {
+        posicao[0] = tolower(posicao[0]);
+        return pintarBranco(jogo, posicao);
+    }
     
+    // Comando para riscar
+    if (tipoComando == 'r' && isalpha(posicao[0]) && isdigit(posicao[1]) && posicao[2] == '\0') {
+        posicao[0] = tolower(posicao[0]);
+        return riscar(jogo, posicao);
+    }
+
+    // Se não corresponde a nenhum comando válido
     printf("Comando inválido: %s\n", comando);
+    printf("Comandos válidos:\n");
+    printf("  b <posicao>   - Pintar de branco\n");
+    printf("  r <posicao>   - Riscar\n");
+    printf("  s             - Sair do jogo\n");
+    
     return -1;
 }

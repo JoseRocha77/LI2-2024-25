@@ -24,7 +24,11 @@ int main(void) {
         comando[strcspn(comando, "\n")] = 0;
         
         int resultado = processarComandos(jogo, comando);
-        desenhaJogo(jogo);
+
+        if (resultado != -1 && resultado != 1) {
+            desenhaJogo(jogo);
+        }
+        
         if (resultado == 1) {
             break;
         }
