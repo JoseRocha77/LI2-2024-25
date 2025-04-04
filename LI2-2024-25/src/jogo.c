@@ -92,14 +92,39 @@ void desenhaJogo (Jogo *jogo) {
 
 int pintarBranco (Jogo *jogo, char *coordenada){
     int coluna = coordenada[0] -'a', linha = coordenada[1] - '1';
-    jogo->tabuleiro[coluna][linha] = (jogo->tabuleiro[coluna][linha]) - ' ';
+    jogo->tabuleiro[linha][coluna] = (jogo->tabuleiro[linha][coluna]) - ' ';
 
     return 0;
 }
 
 int riscar (Jogo *jogo, char *coordenada){
     int coluna = coordenada[0] -'a', linha = coordenada[1] - '1';
-    jogo->tabuleiro[coluna][linha] = '#';
+    jogo->tabuleiro[linha][coluna] = '#';
 
     return 0;
+}
+
+int processarComandos(Jogo *jogo, char *comando) {
+    if (!jogo || !comando) return -1;
+
+    // Comando para pintar de branco
+    if (comando[0] == 'b' && isalpha(comando[1]) && isdigit(comando[2]) && comando[3] == '\0') {
+        comando[1] = tolower(comando[1]);
+        return pintarBranco(jogo, &comando[1]);
+    }
+    
+    // Comando para riscar
+    if (comando[0] == 'r' && isalpha(comando[1]) && isdigit(comando[2]) && comando[3] == '\0') {
+        comando[1] = tolower(comando[1]);
+        return riscar(jogo, &comando[1]);
+    }
+    
+    // Comando para sair do jogo
+    if (strcmp(comando, "s") == 0) {
+        printf("Saindo do jogo...\n");
+        return 1;
+    }
+    
+    printf("Comando inválido: %s\n", comando);
+    return -1;
 }
