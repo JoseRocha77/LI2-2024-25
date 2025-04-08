@@ -49,7 +49,7 @@ Jogo* carregarJogo(char *arquivo) {
             return NULL;
         }
 
-        // Lê cada caractere individualmente para garantir que não há problemas
+        // Lê cada caractere individualmente
         for (int j = 0; j < jogo->colunas; j++) {
             int ch = fgetc(input);
             if (ch == EOF || ch == '\n') {
@@ -133,7 +133,7 @@ int riscar (Jogo *jogo, char *coordenada){
     
     // Verificar se o local já está pintado 
     if (jogo->tabuleiro[linha][coluna] >= 'A' && jogo->tabuleiro[linha][coluna] <= 'Z') {
-        printf("Esta célula está pintada de branco, volta atrás para poderes riscar!\n");
+        printf("Esta célula está pintada de branco, volta atrás para riscar!\n");
         return -1;
     }
 
@@ -141,49 +141,6 @@ int riscar (Jogo *jogo, char *coordenada){
 
     return 0;
 }
-
-// int processarComandos(Jogo *jogo, char *comando) {
-//     if (!jogo || !comando) return -1;
-
-//     // Comando para sair do jogo
-//     if (strcmp(comando, "s") == 0) {
-//         printf("Saindo do jogo...\n");
-//         return 1;
-//     }
-
-//     // Verifica se o comando tem espaço entre a letra e o número
-//     char tipoComando;
-//     char posicao[3];
-//     if (sscanf(comando, "%c %2s", &tipoComando, posicao) != 2) {
-//         printf("Comando inválido: %s\n", comando);
-//         printf("Comandos válidos:\n");
-//         printf("  b <posicao>   - Pintar de branco\n");
-//         printf("  r <posicao>   - Riscar\n");
-//         printf("  s             - Sair do jogo\n");
-//         return -1;
-//     }
-
-//     // Comando para pintar de branco
-//     if (tipoComando == 'b' && isalpha(posicao[0]) && isdigit(posicao[1]) && posicao[2] == '\0') {
-//         posicao[0] = tolower(posicao[0]);
-//         return pintarBranco(jogo, posicao);
-//     }
-    
-//     // Comando para riscar
-//     if (tipoComando == 'r' && isalpha(posicao[0]) && isdigit(posicao[1]) && posicao[2] == '\0') {
-//         posicao[0] = tolower(posicao[0]);
-//         return riscar(jogo, posicao);
-//     }
-
-//     // Se não corresponde a nenhum comando válido
-//     printf("Comando inválido: %s\n", comando);
-//     printf("Comandos válidos:\n");
-//     printf("  b <posicao>   - Pintar de branco\n");
-//     printf("  r <posicao>   - Riscar\n");
-//     printf("  s             - Sair do jogo\n");
-    
-//     return -1;
-// }
 
 void freeJogo(Jogo *jogo) {
     if (jogo != NULL) {
@@ -208,8 +165,8 @@ int processarComandos(Jogo **jogo, char *comando) {
     
     // Comando para carregar jogo (novo)
     if (comando[0] == 'l' && comando[1] == ' ') {
-        char arquivo[95];
-        if (sscanf(comando, "l %94s", arquivo) != 1) {
+        char arquivo[10];
+        if (sscanf(comando, "l %9s", arquivo) != 1) {
             printf("Formato inválido. Use: l <nome_arquivo>\n");
             return -1;
         }
