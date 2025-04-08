@@ -133,31 +133,30 @@ void teste_riscar() {
 
 // Teste para processarComandos
 void teste_processarComandos() {
-    // Verifica se o jogo existe antes de testar
-    CU_ASSERT_PTR_NOT_NULL(jogo);
+    // Teste de comando de pintar
+    int resultado = processarComandos(&jogo, "b b2");  // Agora passando &jogo
+    CU_ASSERT_EQUAL(resultado, 0);
+    CU_ASSERT_EQUAL(jogo->tabuleiro[1][1], 'O');  // 'o' - ' ' = 'O'
     
-    if (jogo != NULL && jogo->tabuleiro != NULL) {
-        // Guarda o valor original
-        char valorOriginal = jogo->tabuleiro[1][1]; // Célula central (b2)
-        
-        // Testa comando de pintar
-        int resultado = processarComandos(jogo, "b b2");
-        CU_ASSERT_EQUAL(resultado, 0);
-        CU_ASSERT_EQUAL(jogo->tabuleiro[1][1], valorOriginal - ' ');
-        
-        // Testa comando de riscar
-        resultado = processarComandos(jogo, "r a3");
-        CU_ASSERT_EQUAL(resultado, 0);
-        CU_ASSERT_EQUAL(jogo->tabuleiro[2][0], '#');
-        
-        // Testa comando inválido
-        resultado = processarComandos(jogo, "x a1");
-        CU_ASSERT_EQUAL(resultado, -1);
-        
-        // Testa comando de sair
-        resultado = processarComandos(jogo, "s");
-        CU_ASSERT_EQUAL(resultado, 1);
-    }
+    // Teste de comando de riscar
+    resultado = processarComandos(&jogo, "r c3");  // Agora passando &jogo
+    CU_ASSERT_EQUAL(resultado, 0);
+    CU_ASSERT_EQUAL(jogo->tabuleiro[2][2], '#');
+    
+    // Teste de comando inválido
+    resultado = processarComandos(&jogo, "x a1");  // Agora passando &jogo
+    CU_ASSERT_EQUAL(resultado, -1);
+    
+    // Teste de comando de sair
+    resultado = processarComandos(&jogo, "s");  // Agora passando &jogo
+    CU_ASSERT_EQUAL(resultado, 1);
+    
+    // Teste com ponteiro nulo
+    resultado = processarComandos(NULL, "b a1");
+    CU_ASSERT_EQUAL(resultado, -1);
+    
+    resultado = processarComandos(&jogo, NULL);
+    CU_ASSERT_EQUAL(resultado, -1);
 }
 
 int main() {
