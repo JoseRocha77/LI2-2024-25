@@ -15,7 +15,11 @@ int pintarBranco (Jogo *jogo, char *coordenada);
 
 int riscar (Jogo *jogo, char *coordenada);
 
-int processarComandos (Jogo *jogo, char *comando);
+//int processarComandos (Jogo *jogo, char *comando);
+
+void freeJogo(Jogo *jogo);
+
+int processarComandos(Jogo **jogo, char *comando);
 
 #endif 
 

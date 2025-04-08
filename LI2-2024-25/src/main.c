@@ -1,3 +1,43 @@
+// #include <stdio.h>
+// #include <stdlib.h>
+// #include <ctype.h>
+// #include <string.h>
+// #include "../include/jogo.h"
+
+// int main(void) {
+//     Jogo *jogo = carregarJogo("input.txt");
+//     if (!jogo) {
+//         return 1;
+//     }
+
+//     desenhaJogo(jogo);
+
+//     char comando[10];
+//     while (1) {
+//         printf("Digite um comando: ");
+//         if (!fgets(comando, sizeof(comando), stdin)) {
+//             printf("Erro ao ler comando.\n");
+//             continue;
+//         }
+        
+//         // Remover newline
+//         comando[strcspn(comando, "\n")] = 0;
+        
+//         int resultado = processarComandos(jogo, comando);
+
+//         if (resultado != -1 && resultado != 1) {
+//             desenhaJogo(jogo);
+//         }
+        
+//         if (resultado == 1) {
+//             break;
+//         }
+//     }
+    
+//     return 0;
+// }
+
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>
@@ -5,14 +45,13 @@
 #include "../include/jogo.h"
 
 int main(void) {
-    Jogo *jogo = carregarJogo("input.txt");
-    if (!jogo) {
-        return 1;
-    }
+    Jogo *jogo = NULL;
+    
+    printf("\n====================Bem-vindo ao jogo Puzzle Hitori!====================\n");
+    printf("\nUse 'l <nome_arquivo>' para carregar um jogo.\n");
+    printf("Digite 's' para sair.\n\n");
 
-    desenhaJogo(jogo);
-
-    char comando[10];
+    char comando[100];  
     while (1) {
         printf("Digite um comando: ");
         if (!fgets(comando, sizeof(comando), stdin)) {
@@ -23,9 +62,9 @@ int main(void) {
         // Remover newline
         comando[strcspn(comando, "\n")] = 0;
         
-        int resultado = processarComandos(jogo, comando);
+        int resultado = processarComandos(&jogo, comando);
 
-        if (resultado != -1 && resultado != 1) {
+        if (jogo != NULL && resultado != -1 && resultado != 1) {
             desenhaJogo(jogo);
         }
         
@@ -33,6 +72,8 @@ int main(void) {
             break;
         }
     }
+    
+    freeJogo(jogo);
     
     return 0;
 }
