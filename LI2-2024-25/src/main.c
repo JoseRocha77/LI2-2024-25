@@ -9,7 +9,13 @@ int main(void) {
     
     printf("\n====================Bem-vindo ao jogo Puzzle Hitori!====================\n");
     printf("\nUse 'l <nome_arquivo>' para carregar um jogo.\n");
-    printf("Digite 's' para sair.\n\n");
+    printf("Comandos disponíveis:\n");
+    printf("  l <arquivo>   - Carregar jogo\n");
+    printf("  b <posicao>   - Pintar de branco\n");
+    printf("  r <posicao>   - Riscar\n");
+    printf("  d             - Desfazer último movimento\n");
+    printf("  v             - Verificar restrições\n");
+    printf("  s             - Sair do jogo\n\n");
 
     char comando[100];  
     while (1) {
@@ -24,7 +30,7 @@ int main(void) {
         
         int resultado = processarComandos(&jogo, comando);
 
-        if (jogo != NULL && resultado != -1 && resultado != 1) {
+        if (jogo != NULL && strcmp(comando, "v") != 0 && resultado != -1 && resultado != 1) {
             desenhaJogo(jogo);
         }
         

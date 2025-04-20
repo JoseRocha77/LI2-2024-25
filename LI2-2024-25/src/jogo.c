@@ -17,6 +17,9 @@ Jogo* carregarJogo(char *arquivo) {
         fclose(input);
         return NULL;
     }
+    
+    // Inicializa o histórico de movimentos
+    jogo->historicoMovimentos = NULL;
 
     // Lê as dimensões do tabuleiro
     if (fscanf(input, "%d %d\n", &jogo->linhas, &jogo->colunas) != 2) {
@@ -88,17 +91,41 @@ void desenhaJogo (Jogo *jogo) {
         printf("\n");
     }
 }
+
+void registrarMovimento(Jogo *jogo, int linha, int coluna, char estadoAnterior) {
+    Movimento *novoMovimento = malloc(sizeof(Movimento));
+    if (!novoMovimento) {
+        printf("Erro na alocação de memória para o histórico.\n");
+        return;
+    }
+    
+    novoMovimento->linha = linha;
+    novoMovimento->coluna = coluna;
+    novoMovimento->estadoAnterior = estadoAnterior;
+    novoMovimento->proximo = jogo->historicoMovimentos;
+    
+    jogo->historicoMovimentos = novoMovimento;
+}
+
 int pintarBranco(Jogo *jogo, char *coordenada){
     int coluna = coordenada[0] - 'a', linha = coordenada[1] - '1';
+    
+    // Validação importante para evitar buffer overflow
+    if (coluna < 0 || coluna >= jogo->colunas || linha < 0 || linha >= jogo->linhas) {
+        printf("Coordenadas inválidas: %s\n", coordenada);
+        return -1;
+    }
+    
+    // Registra o movimento antes de alterá-lo
+    registrarMovimento(jogo, linha, coluna, jogo->tabuleiro[linha][coluna]);
     
     if (jogo->tabuleiro[linha][coluna] >= 'a' && jogo->tabuleiro[linha][coluna] <= 'z') {
         jogo->tabuleiro[linha][coluna] = jogo->tabuleiro[linha][coluna] - 32; //converter para maiscula
     }
-
-    // jogo->tabuleiro[linha][coluna] = toupper(jogo->tabuleiro[linha][coluna]);
     
     return 0;
 }
+
 int riscar(Jogo *jogo, char *coordenada) {
     if (!jogo || !coordenada || strlen(coordenada) < 2) return -1;
     
@@ -111,8 +138,106 @@ int riscar(Jogo *jogo, char *coordenada) {
         return -1;
     }
     
+    // Registra o movimento antes de alterá-lo
+    registrarMovimento(jogo, linha, coluna, jogo->tabuleiro[linha][coluna]);
+    
     jogo->tabuleiro[linha][coluna] = '#';
     return 0;
+}
+
+int desfazerMovimento(Jogo *jogo) {
+    if (!jogo || !jogo->historicoMovimentos) {
+        printf("Não há movimento para desfazer.\n");
+        return -1;
+    }
+    
+    Movimento *ultimoMovimento = jogo->historicoMovimentos;
+    
+    // Restaura o estado anterior
+    jogo->tabuleiro[ultimoMovimento->linha][ultimoMovimento->coluna] = ultimoMovimento->estadoAnterior;
+    
+    // Remove o movimento do histórico
+    jogo->historicoMovimentos = ultimoMovimento->proximo;
+    free(ultimoMovimento);
+    
+    printf("Movimento desfeito.\n");
+    return 0;
+}
+
+int verificarRestricoes(Jogo *jogo) {
+    if (!jogo) return -1;
+    
+    int violacoes = 0;
+    
+    // Verifica a restrição: casas riscadas não podem ser adjacentes
+    for (int i = 0; i < jogo->linhas; i++) {
+        for (int j = 0; j < jogo->colunas; j++) {
+            if (jogo->tabuleiro[i][j] == '#') {
+                // Verifica vizinho à direita
+                if (j < jogo->colunas - 1 && jogo->tabuleiro[i][j+1] == '#') {
+                    printf("Violação: Casas riscadas adjacentes em (%c%d) e (%c%d)\n", 
+                           'a' + j, i + 1, 'a' + j + 1, i + 1);
+                    violacoes++;
+                }
+                
+                // Verifica vizinho abaixo
+                if (i < jogo->linhas - 1 && jogo->tabuleiro[i+1][j] == '#') {
+                    printf("Violação: Casas riscadas adjacentes em (%c%d) e (%c%d)\n", 
+                           'a' + j, i + 1, 'a' + j, i + 2);
+                    violacoes++;
+                }
+                
+                // Verificar se vizinhos ortogonais estão pintados de branco
+                // Vizinho acima
+                if (i > 0 && jogo->tabuleiro[i-1][j] != '#' && 
+                    !(jogo->tabuleiro[i-1][j] >= 'A' && jogo->tabuleiro[i-1][j] <= 'Z')) {
+                    printf("Violação: Casa (%c%d) riscada, mas seu vizinho (%c%d) não está pintado de branco\n", 
+                           'a' + j, i + 1, 'a' + j, i);
+                    violacoes++;
+                }
+                
+                // Vizinho abaixo
+                if (i < jogo->linhas - 1 && jogo->tabuleiro[i+1][j] != '#' && 
+                    !(jogo->tabuleiro[i+1][j] >= 'A' && jogo->tabuleiro[i+1][j] <= 'Z')) {
+                    printf("Violação: Casa (%c%d) riscada, mas seu vizinho (%c%d) não está pintado de branco\n", 
+                           'a' + j, i + 1, 'a' + j, i + 2);
+                    violacoes++;
+                }
+                
+                // Vizinho à esquerda
+                if (j > 0 && jogo->tabuleiro[i][j-1] != '#' && 
+                    !(jogo->tabuleiro[i][j-1] >= 'A' && jogo->tabuleiro[i][j-1] <= 'Z')) {
+                    printf("Violação: Casa (%c%d) riscada, mas seu vizinho (%c%d) não está pintado de branco\n", 
+                           'a' + j, i + 1, 'a' + j - 1, i + 1);
+                    violacoes++;
+                }
+                
+                // Vizinho à direita
+                if (j < jogo->colunas - 1 && jogo->tabuleiro[i][j+1] != '#' && 
+                    !(jogo->tabuleiro[i][j+1] >= 'A' && jogo->tabuleiro[i][j+1] <= 'Z')) {
+                    printf("Violação: Casa (%c%d) riscada, mas seu vizinho (%c%d) não está pintado de branco\n", 
+                           'a' + j, i + 1, 'a' + j + 1, i + 1);
+                    violacoes++;
+                }
+            }
+        }
+    }
+    
+    if (violacoes == 0) {
+        printf("Nenhuma violação de restrição foi encontrada.\n");
+    } else {
+        printf("Total de %d violações encontradas.\n", violacoes);
+    }
+    
+    return violacoes;
+}
+
+void liberarHistoricoMovimentos(Movimento *historico) {
+    while (historico != NULL) {
+        Movimento *temp = historico;
+        historico = historico->proximo;
+        free(temp);
+    }
 }
 
 void freeJogo(Jogo *jogo) {
@@ -123,9 +248,14 @@ void freeJogo(Jogo *jogo) {
             }
             free(jogo->tabuleiro);
         }
+        
+        // Libera a memória do histórico de movimentos
+        liberarHistoricoMovimentos(jogo->historicoMovimentos);
+        
         free(jogo);
     }
 }
+
 int processarComandos(Jogo **jogo, char *comando) {
     if (!jogo || !comando) return -1;
 
@@ -139,6 +269,10 @@ int processarComandos(Jogo **jogo, char *comando) {
                     free((*jogo)->tabuleiro[i]);
                 }
                 free((*jogo)->tabuleiro);
+                
+                // Libera a memória do histórico de movimentos
+                liberarHistoricoMovimentos((*jogo)->historicoMovimentos);
+                
                 free(*jogo);
                 *jogo = NULL;
             }
@@ -160,6 +294,16 @@ int processarComandos(Jogo **jogo, char *comando) {
         printf("Saindo do jogo...\n");
         return 1;
     }
+    
+    // Comando para desfazer o último movimento
+    if (strcmp(comando, "d") == 0) {
+        return desfazerMovimento(*jogo);
+    }
+    
+    // Comando para verificar restrições
+    if (strcmp(comando, "v") == 0) {
+        return verificarRestricoes(*jogo);
+    }
 
     // Verifica se o comando tem espaço entre a letra e o número
     char tipoComando;
@@ -170,6 +314,8 @@ int processarComandos(Jogo **jogo, char *comando) {
         printf("  l <arquivo>   - Carregar jogo\n");
         printf("  b <posicao>   - Pintar de branco\n");
         printf("  r <posicao>   - Riscar\n");
+        printf("  d             - Desfazer último movimento\n");
+        printf("  v             - Verificar restrições\n");
         printf("  s             - Sair do jogo\n");
         return -1;
     }
@@ -208,6 +354,8 @@ int processarComandos(Jogo **jogo, char *comando) {
     printf("  l <arquivo>   - Carregar jogo\n");
     printf("  b <posicao>   - Pintar de branco\n");
     printf("  r <posicao>   - Riscar\n");
+    printf("  d             - Desfazer último movimento\n");
+    printf("  v             - Verificar restrições\n");
     printf("  s             - Sair do jogo\n");
     
     return -1;

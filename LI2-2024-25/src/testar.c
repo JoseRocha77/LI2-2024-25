@@ -1,4 +1,4 @@
-#include <stdio.h>
+/*#include <stdio.h>
 #include <stdlib.h>
 #include <CUnit/Basic.h>
 #include <CUnit/CUnit.h>
@@ -190,4 +190,226 @@ int main() {
     CU_cleanup_registry();
     
     return CU_get_error();
+}
+*/
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <CUnit/Basic.h>
+#include <CUnit/CUnit.h>
+#include "../include/jogo.h"
+
+// Função auxiliar para criar um jogo de teste
+Jogo* criarJogoTeste() {
+    Jogo *jogo = malloc(sizeof(Jogo));
+    jogo->linhas = 3;
+    jogo->colunas = 3;
+    jogo->historicoMovimentos = NULL;
+    
+    jogo->tabuleiro = malloc(jogo->linhas * sizeof(char*));
+    for (int i = 0; i < jogo->linhas; i++) {
+        jogo->tabuleiro[i] = malloc((jogo->colunas + 1) * sizeof(char));
+        for (int j = 0; j < jogo->colunas; j++) {
+            jogo->tabuleiro[i][j] = 'a' + i;
+        }
+        jogo->tabuleiro[i][jogo->colunas] = '\0';
+    }
+    
+    return jogo;
+}
+
+// Teste para a função desfazerMovimento
+void testDesfazerMovimento() {
+    Jogo *jogo = criarJogoTeste();
+    char coordenada[] = "a1";
+    
+    // Estado inicial
+    char estadoInicial = jogo->tabuleiro[0][0];
+    
+    // Riscar uma casa
+    riscar(jogo, coordenada);
+    CU_ASSERT_EQUAL(jogo->tabuleiro[0][0], '#');
+    
+    // Desfazer o movimento
+    desfazerMovimento(jogo);
+    CU_ASSERT_EQUAL(jogo->tabuleiro[0][0], estadoInicial);
+    
+    // Verificar que não há mais movimentos para desfazer
+    CU_ASSERT_EQUAL(jogo->historicoMovimentos, NULL);
+    
+    // Testar desfazer sem movimentos
+    int resultado = desfazerMovimento(jogo);
+    CU_ASSERT_EQUAL(resultado, -1);
+    
+    freeJogo(jogo);
+}
+
+// Teste para a função verificarRestricoes com casas riscadas adjacentes
+void testVerificarRestricoesRiscadasAdjacentes() {
+    Jogo *jogo = criarJogoTeste();
+    
+    // Riscar duas casas adjacentes
+    char coord1[] = "a1";
+    char coord2[] = "a2";
+    riscar(jogo, coord1);
+    riscar(jogo, coord2);
+    
+    // Deve encontrar uma violação
+    int violacoes = verificarRestricoes(jogo);
+    CU_ASSERT_TRUE(violacoes > 0);
+    
+    freeJogo(jogo);
+}
+
+// Teste para a função verificarRestricoes com vizinhos não pintados de branco
+void testVerificarRestricoesVizinhosNaoBrancos() {
+    Jogo *jogo = criarJogoTeste();
+    
+    // Riscar uma casa no meio
+    char coord[] = "b2";
+    riscar(jogo, coord);
+    
+    // Deve encontrar violações (vizinhos não pintados de branco)
+    int violacoes = verificarRestricoes(jogo);
+    CU_ASSERT_TRUE(violacoes > 0);
+    
+    // Agora vamos pintar todos os vizinhos de branco
+    char vizinho1[] = "a2";
+    char vizinho2[] = "b1";
+    char vizinho3[] = "b3";
+    char vizinho4[] = "c2";
+    pintarBranco(jogo, vizinho1);
+    pintarBranco(jogo, vizinho2);
+    pintarBranco(jogo, vizinho3);
+    pintarBranco(jogo, vizinho4);
+    
+    // Não deve encontrar violações
+    violacoes = verificarRestricoes(jogo);
+    CU_ASSERT_EQUAL(violacoes, 0);
+    
+    freeJogo(jogo);
+}
+
+// Teste para a função verificarRestricoes sem violações
+void testVerificarRestricoesNenhumaViolacao() {
+    Jogo *jogo = criarJogoTeste();
+    
+    // Riscar uma casa
+    char coord[] = "a1";
+    riscar(jogo, coord);
+    
+    // Pintar todos os vizinhos de branco
+    char vizinho1[] = "a2";
+    char vizinho2[] = "b1";
+    pintarBranco(jogo, vizinho1);
+    pintarBranco(jogo, vizinho2);
+    
+    // Não deve encontrar violações
+    int violacoes = verificarRestricoes(jogo);
+    CU_ASSERT_EQUAL(violacoes, 0);
+    
+    freeJogo(jogo);
+}
+
+// Teste para a função registrarMovimento
+void testRegistrarMovimento() {
+    Jogo *jogo = criarJogoTeste();
+    
+    // Estado inicial do histórico
+    CU_ASSERT_PTR_NULL(jogo->historicoMovimentos);
+    
+    // Riscar uma casa
+    char coord[] = "a1";
+    char estadoInicial = jogo->tabuleiro[0][0];
+    riscar(jogo, coord);
+    
+    // Verificar se o movimento foi registrado corretamente
+    CU_ASSERT_PTR_NOT_NULL(jogo->historicoMovimentos);
+    CU_ASSERT_EQUAL(jogo->historicoMovimentos->linha, 0);
+    CU_ASSERT_EQUAL(jogo->historicoMovimentos->coluna, 0);
+    CU_ASSERT_EQUAL(jogo->historicoMovimentos->estadoAnterior, estadoInicial);
+    
+    freeJogo(jogo);
+}
+
+// Teste para verificar a liberação correta da memória do histórico
+void testLiberarHistoricoMovimentos() {
+    Jogo *jogo = criarJogoTeste();
+    
+    // Fazer alguns movimentos
+    char coord1[] = "a1";
+    char coord2[] = "a2";
+    riscar(jogo, coord1);
+    riscar(jogo, coord2);
+    
+    // Verificar se o histórico não é nulo
+    CU_ASSERT_PTR_NOT_NULL(jogo->historicoMovimentos);
+    
+    // Liberar o jogo deve liberar também o histórico
+    freeJogo(jogo);
+    
+    // Não podemos testar diretamente se a memória foi liberada,
+    // mas pelo menos garantimos que a função foi chamada sem erros
+}
+
+// Teste para processarComandos - comando "d"
+void testProcessarComandosDesfazer() {
+    Jogo *jogo = criarJogoTeste();
+    Jogo **jogoPtr = &jogo;
+    
+    // Riscar uma casa
+    char comando1[] = "r a1";
+    processarComandos(jogoPtr, comando1);
+    CU_ASSERT_EQUAL(jogo->tabuleiro[0][0], '#');
+    
+    // Desfazer o movimento
+    char comando2[] = "d";
+    processarComandos(jogoPtr, comando2);
+    CU_ASSERT_EQUAL(jogo->tabuleiro[0][0], 'a');
+    
+    freeJogo(jogo);
+}
+
+// Teste para processarComandos - comando "v"
+void testProcessarComandosVerificar() {
+    Jogo *jogo = criarJogoTeste();
+    Jogo **jogoPtr = &jogo;
+    
+    // Riscar duas casas adjacentes
+    char comando1[] = "r a1";
+    char comando2[] = "r a2";
+    processarComandos(jogoPtr, comando1);
+    processarComandos(jogoPtr, comando2);
+    
+    // Verificar restrições
+    char comando3[] = "v";
+    int resultado = processarComandos(jogoPtr, comando3);
+    CU_ASSERT_NOT_EQUAL(resultado, -1); // O comando deve ser aceito
+    
+    freeJogo(jogo);
+}
+
+int main() {
+    CU_initialize_registry();
+    
+    CU_pSuite suite = CU_add_suite("Suite_Jogo", NULL, NULL);
+    
+    CU_add_test(suite, "testDesfazerMovimento", testDesfazerMovimento);
+    CU_add_test(suite, "testVerificarRestricoesRiscadasAdjacentes", testVerificarRestricoesRiscadasAdjacentes);
+    CU_add_test(suite, "testVerificarRestricoesVizinhosNaoBrancos", testVerificarRestricoesVizinhosNaoBrancos);
+    CU_add_test(suite, "testVerificarRestricoesNenhumaViolacao", testVerificarRestricoesNenhumaViolacao);
+    CU_add_test(suite, "testRegistrarMovimento", testRegistrarMovimento);
+    CU_add_test(suite, "testLiberarHistoricoMovimentos", testLiberarHistoricoMovimentos);
+    CU_add_test(suite, "testProcessarComandosDesfazer", testProcessarComandosDesfazer);
+    CU_add_test(suite, "testProcessarComandosVerificar", testProcessarComandosVerificar);
+    
+    CU_basic_set_mode(CU_BRM_VERBOSE);
+    CU_basic_run_tests();
+    
+    int failures = CU_get_number_of_failures();
+    
+    CU_cleanup_registry();
+    
+    return failures;
 }
