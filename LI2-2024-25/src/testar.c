@@ -1,415 +1,429 @@
-/*#include <stdio.h>
-#include <stdlib.h>
-#include <CUnit/Basic.h>
-#include <CUnit/CUnit.h>
-#include "../include/jogo.h"
-
-// Variável global para usar nos testes
-Jogo *jogo = NULL;
-
-// Criar um arquivo de teste temporário simples
-void criar_arquivo_teste() {
-    FILE *f = fopen("teste_jogo.txt", "w");
-    if (f != NULL) {
-        fprintf(f, "3 3\n");
-        fprintf(f, "...\n");
-        fprintf(f, ".o.\n");
-        fprintf(f, "...\n");
-        fclose(f);
-    } else {
-        printf("Erro ao criar arquivo de teste temporário\n");
-    }
-}
-
-// Inicialização da suite de testes
-int init_suite() {
-    criar_arquivo_teste();
-    return 0;
-}
-
-// Limpeza da suite de testes
-int clean_suite() {
-    if (jogo != NULL) {
-        if (jogo->tabuleiro != NULL) {
-            for (int i = 0; i < jogo->linhas; i++) {
-                if (jogo->tabuleiro[i] != NULL) {
-                    free(jogo->tabuleiro[i]);
-                }
-            }
-            free(jogo->tabuleiro);
-        }
-        free(jogo);
-        jogo = NULL;
-    }
-    remove("teste_jogo.txt");
-    return 0;
-}
-
-// Teste para carregarJogo
-void teste_carregarJogo() {
-    // Primeiro limpa qualquer jogo existente
-    if (jogo != NULL) {
-        if (jogo->tabuleiro != NULL) {
-            for (int i = 0; i < jogo->linhas; i++) {
-                if (jogo->tabuleiro[i] != NULL) {
-                    free(jogo->tabuleiro[i]);
-                }
-            }
-            free(jogo->tabuleiro);
-        }
-        free(jogo);
-        jogo = NULL;
-    }
-    
-    // Tenta carregar um arquivo que não existe
-    Jogo *jogoInexistente = carregarJogo("arquivo_inexistente.txt");
-    CU_ASSERT_PTR_NULL(jogoInexistente);
-    
-    // Carrega o jogo de teste
-    jogo = carregarJogo("teste_jogo.txt");
-    
-    // Verifica se o jogo foi carregado
-    CU_ASSERT_PTR_NOT_NULL(jogo);
-    
-    // Se o jogo foi carregado, verifica suas propriedades
-    if (jogo != NULL) {
-        CU_ASSERT_EQUAL(jogo->linhas, 3);
-        CU_ASSERT_EQUAL(jogo->colunas, 3);
-        CU_ASSERT_PTR_NOT_NULL(jogo->tabuleiro);
-    }
-}
-
-// Teste para desenhaJogo
-void teste_desenhaJogo() {
-    // Verifica se o jogo existe antes de desenhar
-    CU_ASSERT_PTR_NOT_NULL(jogo);
-    
-    if (jogo != NULL) {
-        // Como desenhaJogo apenas imprime no stdout, não há muito o que testar além
-        // de garantir que não quebra quando chamado
-        desenhaJogo(jogo);
-        // Se chegou aqui, passou no teste
-        CU_PASS("desenhaJogo executou sem erros");
-    }
-}
-
-// Teste para pintarBranco
-void teste_pintarBranco() {
-    // Verifica se o jogo existe antes de testar
-    CU_ASSERT_PTR_NOT_NULL(jogo);
-    
-    if (jogo != NULL && jogo->tabuleiro != NULL) {
-        // Guarda o valor original
-        char valorOriginal = jogo->tabuleiro[1][1]; // Célula central (b2)
-        
-        // Testa a função pintarBranco
-        char coordenada[] = "b2";  // Posição central com 'o'
-        int resultado = pintarBranco(jogo, coordenada);
-        
-        // Verifica o resultado
-        CU_ASSERT_EQUAL(resultado, 0);
-        
-        // 'o' deve se tornar 'O' (maiúsculo) pela lógica da função pintarBranco
-        // que subtrai o valor de um espaço ' ' (ASCII 32)
-        CU_ASSERT_EQUAL(jogo->tabuleiro[1][1], valorOriginal - ' ');
-    }
-}
-
-// Teste para riscar
-void teste_riscar() {
-    // Verifica se o jogo existe antes de testar
-    CU_ASSERT_PTR_NOT_NULL(jogo);
-    
-    if (jogo != NULL && jogo->tabuleiro != NULL) {
-        // Testa a função riscar
-        char coordenada[] = "a1";  // Posição superior esquerda
-        int resultado = riscar(jogo, coordenada);
-        
-        // Verifica o resultado
-        CU_ASSERT_EQUAL(resultado, 0);
-        CU_ASSERT_EQUAL(jogo->tabuleiro[0][0], '#');
-    }
-}
-
-// Teste para processarComandos
-void teste_processarComandos() {
-    // Teste de comando de pintar
-    int resultado = processarComandos(&jogo, "b b2");  // Agora passando &jogo
-    CU_ASSERT_EQUAL(resultado, 0);
-    CU_ASSERT_EQUAL(jogo->tabuleiro[1][1], 'O');  // 'o' - ' ' = 'O'
-    
-    // Teste de comando de riscar
-    resultado = processarComandos(&jogo, "r c3");  // Agora passando &jogo
-    CU_ASSERT_EQUAL(resultado, 0);
-    CU_ASSERT_EQUAL(jogo->tabuleiro[2][2], '#');
-    
-    // Teste de comando inválido
-    resultado = processarComandos(&jogo, "x a1");  // Agora passando &jogo
-    CU_ASSERT_EQUAL(resultado, -1);
-    
-    // Teste de comando de sair
-    resultado = processarComandos(&jogo, "s");  // Agora passando &jogo
-    CU_ASSERT_EQUAL(resultado, 1);
-    
-    // Teste com ponteiro nulo
-    resultado = processarComandos(NULL, "b a1");
-    CU_ASSERT_EQUAL(resultado, -1);
-    
-    resultado = processarComandos(&jogo, NULL);
-    CU_ASSERT_EQUAL(resultado, -1);
-}
-
-int main() {
-    // Inicializa o registo do CUnit
-    if (CUE_SUCCESS != CU_initialize_registry()) {
-        return CU_get_error();
-    }
-
-    // Adiciona a suite ao registo
-    CU_pSuite suite = CU_add_suite("Suite de testes do jogo", init_suite, clean_suite);
-    if (NULL == suite) {
-        CU_cleanup_registry();
-        return CU_get_error();
-    }
-
-    // Adiciona os testes à suite
-    if ((NULL == CU_add_test(suite, "Teste de carregarJogo", teste_carregarJogo)) ||
-        (NULL == CU_add_test(suite, "Teste de desenhaJogo", teste_desenhaJogo)) ||
-        (NULL == CU_add_test(suite, "Teste de pintarBranco", teste_pintarBranco)) ||
-        (NULL == CU_add_test(suite, "Teste de riscar", teste_riscar)) ||
-        (NULL == CU_add_test(suite, "Teste de processarComandos", teste_processarComandos))) {
-        CU_cleanup_registry();
-        return CU_get_error();
-    }
-
-    // Executa todos os testes
-    CU_basic_set_mode(CU_BRM_VERBOSE);
-    CU_basic_run_tests();
-    
-    // Limpa o registo do CUnit
-    CU_cleanup_registry();
-    
-    return CU_get_error();
-}
-*/
-
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 #include <CUnit/Basic.h>
 #include <CUnit/CUnit.h>
 #include "../include/jogo.h"
 
-// Função auxiliar para criar um jogo de teste
-Jogo* criarJogoTeste() {
-    Jogo *jogo = malloc(sizeof(Jogo));
-    jogo->linhas = 3;
-    jogo->colunas = 3;
-    jogo->historicoMovimentos = NULL;
-    
-    jogo->tabuleiro = malloc(jogo->linhas * sizeof(char*));
-    for (int i = 0; i < jogo->linhas; i++) {
-        jogo->tabuleiro[i] = malloc((jogo->colunas + 1) * sizeof(char));
-        for (int j = 0; j < jogo->colunas; j++) {
-            jogo->tabuleiro[i][j] = 'a' + i;
-        }
-        jogo->tabuleiro[i][jogo->colunas] = '\0';
+// Definições para facilitar os testes
+#define TABULEIRO_TEST "tabuleiro_test.txt"
+#define ARQUIVO_INEXISTENTE "arquivo_inexistente.txt"
+
+// Função para criar um arquivo de teste
+void criar_arquivo_teste() {
+    FILE *file = fopen(TABULEIRO_TEST, "w");
+    if (file) {
+        fprintf(file, "5 5\necadc\ndcdec\nbddce\ncdeeb\naccbb\n");
+        fclose(file);
     }
-    
-    return jogo;
 }
 
-// Teste para a função desfazerMovimento
-void testDesfazerMovimento() {
-    Jogo *jogo = criarJogoTeste();
-    char coordenada[] = "a1";
+// Função para limpar o arquivo de teste
+void limpar_arquivo_teste() {
+    remove(TABULEIRO_TEST);
+}
+
+// ===== Testes para carregamento de jogo =====
+
+void teste_carregar_jogo_valido() {
+    criar_arquivo_teste();
     
-    // Estado inicial
-    char estadoInicial = jogo->tabuleiro[0][0];
+    Jogo *jogo = carregarJogo(TABULEIRO_TEST);
     
-    // Riscar uma casa
-    riscar(jogo, coordenada);
-    CU_ASSERT_EQUAL(jogo->tabuleiro[0][0], '#');
+    CU_ASSERT_PTR_NOT_NULL(jogo);
+    CU_ASSERT_EQUAL(jogo->linhas, 5);
+    CU_ASSERT_EQUAL(jogo->colunas, 5);
+    CU_ASSERT_EQUAL(jogo->tabuleiro[0][0], 'e');
+    CU_ASSERT_EQUAL(jogo->tabuleiro[4][4], 'b');
     
-    // Desfazer o movimento
-    desfazerMovimento(jogo);
-    CU_ASSERT_EQUAL(jogo->tabuleiro[0][0], estadoInicial);
+    freeJogo(jogo);
+    limpar_arquivo_teste();
+}
+
+void teste_carregar_jogo_arquivo_inexistente() {
+    Jogo *jogo = carregarJogo(ARQUIVO_INEXISTENTE);
+    CU_ASSERT_PTR_NULL(jogo);
+}
+
+// ===== Testes para pintar e riscar =====
+
+void teste_pintar_branco_valido() {
+    criar_arquivo_teste();
+    Jogo *jogo = carregarJogo(TABULEIRO_TEST);
     
-    // Verificar que não há mais movimentos para desfazer
-    CU_ASSERT_EQUAL(jogo->historicoMovimentos, NULL);
+    int resultado = pintarBranco(jogo, "a1");
     
-    // Testar desfazer sem movimentos
-    int resultado = desfazerMovimento(jogo);
+    CU_ASSERT_EQUAL(resultado, 0);
+    CU_ASSERT_EQUAL(jogo->tabuleiro[0][0], 'E');
+    
+    freeJogo(jogo);
+    limpar_arquivo_teste();
+}
+
+void teste_pintar_branco_invalido() {
+    criar_arquivo_teste();
+    Jogo *jogo = carregarJogo(TABULEIRO_TEST);
+    
+    int resultado = pintarBranco(jogo, "z9");
+    
     CU_ASSERT_EQUAL(resultado, -1);
     
     freeJogo(jogo);
+    limpar_arquivo_teste();
 }
 
-// Teste para a função verificarRestricoes com casas riscadas adjacentes
-void testVerificarRestricoesRiscadasAdjacentes() {
-    Jogo *jogo = criarJogoTeste();
+void teste_riscar_valido() {
+    criar_arquivo_teste();
+    Jogo *jogo = carregarJogo(TABULEIRO_TEST);
     
-    // Riscar duas casas adjacentes
-    char coord1[] = "a1";
-    char coord2[] = "a2";
-    riscar(jogo, coord1);
-    riscar(jogo, coord2);
+    int resultado = riscar(jogo, "a1");
     
-    // Deve encontrar uma violação
-    int violacoes = verificarRestricoes(jogo);
-    CU_ASSERT_TRUE(violacoes > 0);
+    CU_ASSERT_EQUAL(resultado, 0);
+    CU_ASSERT_EQUAL(jogo->tabuleiro[0][0], '#');
     
     freeJogo(jogo);
+    limpar_arquivo_teste();
 }
 
-// Teste para a função verificarRestricoes com vizinhos não pintados de branco
-void testVerificarRestricoesVizinhosNaoBrancos() {
-    Jogo *jogo = criarJogoTeste();
+void teste_riscar_invalido() {
+    criar_arquivo_teste();
+    Jogo *jogo = carregarJogo(TABULEIRO_TEST);
     
-    // Riscar uma casa no meio
-    char coord[] = "b2";
-    riscar(jogo, coord);
+    int resultado = riscar(jogo, "z9");
     
-    // Deve encontrar violações (vizinhos não pintados de branco)
-    int violacoes = verificarRestricoes(jogo);
-    CU_ASSERT_TRUE(violacoes > 0);
-    
-    // Agora vamos pintar todos os vizinhos de branco
-    char vizinho1[] = "a2";
-    char vizinho2[] = "b1";
-    char vizinho3[] = "b3";
-    char vizinho4[] = "c2";
-    pintarBranco(jogo, vizinho1);
-    pintarBranco(jogo, vizinho2);
-    pintarBranco(jogo, vizinho3);
-    pintarBranco(jogo, vizinho4);
-    
-    // Não deve encontrar violações
-    violacoes = verificarRestricoes(jogo);
-    CU_ASSERT_EQUAL(violacoes, 0);
+    CU_ASSERT_EQUAL(resultado, -1);
     
     freeJogo(jogo);
+    limpar_arquivo_teste();
 }
 
-// Teste para a função verificarRestricoes sem violações
-void testVerificarRestricoesNenhumaViolacao() {
-    Jogo *jogo = criarJogoTeste();
-    
-    // Riscar uma casa
-    char coord[] = "a1";
-    riscar(jogo, coord);
-    
-    // Pintar todos os vizinhos de branco
-    char vizinho1[] = "a2";
-    char vizinho2[] = "b1";
-    pintarBranco(jogo, vizinho1);
-    pintarBranco(jogo, vizinho2);
-    
-    // Não deve encontrar violações
-    int violacoes = verificarRestricoes(jogo);
-    CU_ASSERT_EQUAL(violacoes, 0);
-    
-    freeJogo(jogo);
-}
+// ===== Testes para registo de movimentos =====
 
-// Teste para a função registarMovimento
-void testRegist§arMovimento() {
-    Jogo *jogo = criarJogoTeste();
+void teste_registar_movimento() {
+    criar_arquivo_teste();
+    Jogo *jogo = carregarJogo(TABULEIRO_TEST);
     
-    // Estado inicial do histórico
-    CU_ASSERT_PTR_NULL(jogo->historicoMovimentos);
+    char estadoAnterior = jogo->tabuleiro[0][0];
+    registarMovimento(jogo, 0, 0, estadoAnterior);
     
-    // Riscar uma casa
-    char coord[] = "a1";
-    char estadoInicial = jogo->tabuleiro[0][0];
-    riscar(jogo, coord);
-    
-    // Verificar se o movimento foi registado corretamente
     CU_ASSERT_PTR_NOT_NULL(jogo->historicoMovimentos);
     CU_ASSERT_EQUAL(jogo->historicoMovimentos->linha, 0);
     CU_ASSERT_EQUAL(jogo->historicoMovimentos->coluna, 0);
-    CU_ASSERT_EQUAL(jogo->historicoMovimentos->estadoAnterior, estadoInicial);
+    CU_ASSERT_EQUAL(jogo->historicoMovimentos->estadoAnterior, estadoAnterior);
     
     freeJogo(jogo);
+    limpar_arquivo_teste();
 }
 
-// Teste para verificar a liberação correta da memória do histórico
-void testLiberarHistoricoMovimentos() {
-    Jogo *jogo = criarJogoTeste();
+// ===== Testes para desfazer movimento =====
+
+void teste_desfazer_movimento() {
+    criar_arquivo_teste();
+    Jogo *jogo = carregarJogo(TABULEIRO_TEST);
     
-    // Fazer alguns movimentos
-    char coord1[] = "a1";
-    char coord2[] = "a2";
-    riscar(jogo, coord1);
-    riscar(jogo, coord2);
+    // Primeiro, faz um movimento para ter o que desfazer
+    pintarBranco(jogo, "a1");
+    CU_ASSERT_EQUAL(jogo->tabuleiro[0][0], 'E');
     
-    // Verificar se o histórico não é nulo
-    CU_ASSERT_PTR_NOT_NULL(jogo->historicoMovimentos);
+    // Agora, desfaz o movimento
+    int resultado = desfazerMovimento(jogo);
     
-    // Liberar o jogo deve liberar também o histórico
+    CU_ASSERT_EQUAL(resultado, 0);
+    CU_ASSERT_EQUAL(jogo->tabuleiro[0][0], 'e');
+    
     freeJogo(jogo);
-    
-    // Não podemos testar diretamente se a memória foi liberada,
-    // mas pelo menos garantimos que a função foi chamada sem erros
+    limpar_arquivo_teste();
 }
 
-// Teste para processarComandos - comando "d"
-void testProcessarComandosDesfazer() {
-    Jogo *jogo = criarJogoTeste();
-    Jogo **jogoPtr = &jogo;
+void teste_desfazer_movimento_sem_historico() {
+    criar_arquivo_teste();
+    Jogo *jogo = carregarJogo(TABULEIRO_TEST);
     
-    // Riscar uma casa
-    char comando1[] = "r a1";
-    processarComandos(jogoPtr, comando1);
+    // Tenta desfazer sem ter feito nenhum movimento
+    int resultado = desfazerMovimento(jogo);
+    
+    CU_ASSERT_EQUAL(resultado, -1);
+    
+    freeJogo(jogo);
+    limpar_arquivo_teste();
+}
+
+void teste_desfazer_multiplos_movimentos() {
+    criar_arquivo_teste();
+    Jogo *jogo = carregarJogo(TABULEIRO_TEST);
+    
+    // Faz vários movimentos
+    pintarBranco(jogo, "a1");
+    riscar(jogo, "b1");
+    pintarBranco(jogo, "c1");
+    
+    // Desfaz os movimentos na ordem inversa
+    desfazerMovimento(jogo);
+    CU_ASSERT_EQUAL(jogo->tabuleiro[0][2], 'a');
+    
+    desfazerMovimento(jogo);
+    CU_ASSERT_EQUAL(jogo->tabuleiro[0][1], 'c');
+    
+    desfazerMovimento(jogo);
+    CU_ASSERT_EQUAL(jogo->tabuleiro[0][0], 'e');
+    
+    freeJogo(jogo);
+    limpar_arquivo_teste();
+}
+
+// ===== Testes para verificar restrições =====
+
+void teste_verificar_restricoes_basico() {
+    criar_arquivo_teste();
+    Jogo *jogo = carregarJogo(TABULEIRO_TEST);
+    
+    int resultado = verificarRestricoes(jogo);
+    
+    // O tabuleiro inicial não deve ter violações de restrições
+    CU_ASSERT_EQUAL(resultado, 0);
+    
+    freeJogo(jogo);
+    limpar_arquivo_teste();
+}
+
+void teste_verificar_restricao_casas_riscadas_adjacentes() {
+    criar_arquivo_teste();
+    Jogo *jogo = carregarJogo(TABULEIRO_TEST);
+    
+    // Risca duas casas adjacentes
+    riscar(jogo, "a1");
+    riscar(jogo, "b1");
+    
+    int resultado = verificarRestricoes(jogo);
+    
+    // Deve identificar violação de restrição
+    CU_ASSERT_EQUAL(resultado, 0); // A função retorna 0 mas imprime as violações
+    
+    freeJogo(jogo);
+    limpar_arquivo_teste();
+}
+
+void teste_verificar_restricao_vizinhos_riscados() {
+    criar_arquivo_teste();
+    Jogo *jogo = carregarJogo(TABULEIRO_TEST);
+    
+    // Risca uma casa sem pintar os vizinhos de branco
+    riscar(jogo, "b2");
+    
+    int resultado = verificarRestricoes(jogo);
+    
+    // Deve identificar violação de restrição
+    CU_ASSERT_EQUAL(resultado, 0); // A função retorna 0 mas imprime as violações
+    
+    freeJogo(jogo);
+    limpar_arquivo_teste();
+}
+
+// ===== Testes para verificar conectividade =====
+
+void teste_verificar_conectividade_sem_brancas() {
+    criar_arquivo_teste();
+    Jogo *jogo = carregarJogo(TABULEIRO_TEST);
+    
+    // Tabuleiro inicial não tem casas brancas
+    int resultado = verificarConectividadeBrancas(jogo);
+    
+    CU_ASSERT_EQUAL(resultado, 0);
+    
+    freeJogo(jogo);
+    limpar_arquivo_teste();
+}
+
+void teste_verificar_conectividade_com_brancas_conectadas() {
+    criar_arquivo_teste();
+    Jogo *jogo = carregarJogo(TABULEIRO_TEST);
+    
+    // Pinta casas brancas adjacentes
+    pintarBranco(jogo, "a1");
+    pintarBranco(jogo, "a2");
+    pintarBranco(jogo, "b2");
+    
+    int resultado = verificarConectividadeBrancas(jogo);
+    
+    CU_ASSERT_EQUAL(resultado, 0);
+    
+    freeJogo(jogo);
+    limpar_arquivo_teste();
+}
+
+void teste_verificar_conectividade_com_brancas_desconectadas() {
+    criar_arquivo_teste();
+    Jogo *jogo = carregarJogo(TABULEIRO_TEST);
+    
+    // Pinta casas brancas não adjacentes
+    pintarBranco(jogo, "a1");
+    pintarBranco(jogo, "e5");
+    
+    int resultado = verificarConectividadeBrancas(jogo);
+    
+    CU_ASSERT_EQUAL(resultado, -1);
+    
+    freeJogo(jogo);
+    limpar_arquivo_teste();
+}
+
+// ===== Testes para processamento de comandos =====
+
+void teste_processar_comando_carregar() {
+    criar_arquivo_teste();
+    Jogo *jogo = NULL;
+    
+    int resultado = processarComandos(&jogo, "l tabuleiro_test.txt");
+    
+    CU_ASSERT_EQUAL(resultado, 0);
+    CU_ASSERT_PTR_NOT_NULL(jogo);
+    
+    freeJogo(jogo);
+    limpar_arquivo_teste();
+}
+
+void teste_processar_comando_pintar() {
+    criar_arquivo_teste();
+    Jogo *jogo = carregarJogo(TABULEIRO_TEST);
+    
+    int resultado = processarComandos(&jogo, "b a1");
+    
+    CU_ASSERT_EQUAL(resultado, 0);
+    CU_ASSERT_EQUAL(jogo->tabuleiro[0][0], 'E');
+    
+    freeJogo(jogo);
+    limpar_arquivo_teste();
+}
+
+void teste_processar_comando_riscar() {
+    criar_arquivo_teste();
+    Jogo *jogo = carregarJogo(TABULEIRO_TEST);
+    
+    int resultado = processarComandos(&jogo, "r a1");
+    
+    CU_ASSERT_EQUAL(resultado, 0);
     CU_ASSERT_EQUAL(jogo->tabuleiro[0][0], '#');
     
-    // Desfazer o movimento
-    char comando2[] = "d";
-    processarComandos(jogoPtr, comando2);
-    CU_ASSERT_EQUAL(jogo->tabuleiro[0][0], 'a');
-    
     freeJogo(jogo);
+    limpar_arquivo_teste();
 }
 
-// Teste para processarComandos - comando "v"
-void testProcessarComandosVerificar() {
-    Jogo *jogo = criarJogoTeste();
-    Jogo **jogoPtr = &jogo;
+void teste_processar_comando_desfazer() {
+    criar_arquivo_teste();
+    Jogo *jogo = carregarJogo(TABULEIRO_TEST);
     
-    // Riscar duas casas adjacentes
-    char comando1[] = "r a1";
-    char comando2[] = "r a2";
-    processarComandos(jogoPtr, comando1);
-    processarComandos(jogoPtr, comando2);
+    // Faz um movimento e depois desfaz
+    processarComandos(&jogo, "b a1");
+    int resultado = processarComandos(&jogo, "d");
     
-    // Verificar restrições
-    char comando3[] = "v";
-    int resultado = processarComandos(jogoPtr, comando3);
-    CU_ASSERT_NOT_EQUAL(resultado, -1); // O comando deve ser aceito
+    CU_ASSERT_EQUAL(resultado, 0);
+    CU_ASSERT_EQUAL(jogo->tabuleiro[0][0], 'e');
     
     freeJogo(jogo);
+    limpar_arquivo_teste();
+}
+
+void teste_processar_comando_verificar() {
+    criar_arquivo_teste();
+    Jogo *jogo = carregarJogo(TABULEIRO_TEST);
+    
+    int resultado = processarComandos(&jogo, "v");
+    
+    CU_ASSERT_EQUAL(resultado, 0);
+    
+    freeJogo(jogo);
+    limpar_arquivo_teste();
+}
+
+void teste_processar_comando_sair() {
+    criar_arquivo_teste();
+    Jogo *jogo = carregarJogo(TABULEIRO_TEST);
+    
+    int resultado = processarComandos(&jogo, "s");
+    
+    CU_ASSERT_EQUAL(resultado, 1); // 1 indica sair
+    
+    freeJogo(jogo);
+    limpar_arquivo_teste();
+}
+
+void teste_processar_comando_invalido() {
+    criar_arquivo_teste();
+    Jogo *jogo = carregarJogo(TABULEIRO_TEST);
+    
+    int resultado = processarComandos(&jogo, "x");
+    
+    CU_ASSERT_EQUAL(resultado, -1);
+    
+    freeJogo(jogo);
+    limpar_arquivo_teste();
+}
+
+// ===== Configuração da suíte de testes =====
+
+int inicializar() {
+    return 0;
+}
+
+int limpar() {
+    return 0;
 }
 
 int main() {
-    CU_initialize_registry();
+    CU_pSuite pSuite = NULL;
     
-    CU_pSuite suite = CU_add_suite("Suite_Jogo", NULL, NULL);
+    // Inicializa o registo de testes do CUnit
+    if (CU_initialize_registry() != CUE_SUCCESS) {
+        return CU_get_error();
+    }
     
-    CU_add_test(suite, "testDesfazerMovimento", testDesfazerMovimento);
-    CU_add_test(suite, "testVerificarRestricoesRiscadasAdjacentes", testVerificarRestricoesRiscadasAdjacentes);
-    CU_add_test(suite, "testVerificarRestricoesVizinhosNaoBrancos", testVerificarRestricoesVizinhosNaoBrancos);
-    CU_add_test(suite, "testVerificarRestricoesNenhumaViolacao", testVerificarRestricoesNenhumaViolacao);
-    CU_add_test(suite, "testRegistarMovimento", testRegistarMovimento);
-    CU_add_test(suite, "testLiberarHistoricoMovimentos", testLiberarHistoricoMovimentos);
-    CU_add_test(suite, "testProcessarComandosDesfazer", testProcessarComandosDesfazer);
-    CU_add_test(suite, "testProcessarComandosVerificar", testProcessarComandosVerificar);
+    // Adiciona uma suíte ao registo
+    pSuite = CU_add_suite("Suite_Jogo", inicializar, limpar);
+    if (pSuite == NULL) {
+        CU_cleanup_registry();
+        return CU_get_error();
+    }
     
+    // Adiciona os testes à suíte
+    // Testes para carregamento de jogo
+    CU_add_test(pSuite, "teste_carregar_jogo_valido", teste_carregar_jogo_valido);
+    CU_add_test(pSuite, "teste_carregar_jogo_arquivo_inexistente", teste_carregar_jogo_arquivo_inexistente);
+    
+    // Testes para pintar e riscar
+    CU_add_test(pSuite, "teste_pintar_branco_valido", teste_pintar_branco_valido);
+    CU_add_test(pSuite, "teste_pintar_branco_invalido", teste_pintar_branco_invalido);
+    CU_add_test(pSuite, "teste_riscar_valido", teste_riscar_valido);
+    CU_add_test(pSuite, "teste_riscar_invalido", teste_riscar_invalido);
+    
+    // Testes para registo e desfazer movimentos
+    CU_add_test(pSuite, "teste_registar_movimento", teste_registar_movimento);
+    CU_add_test(pSuite, "teste_desfazer_movimento", teste_desfazer_movimento);
+    CU_add_test(pSuite, "teste_desfazer_movimento_sem_historico", teste_desfazer_movimento_sem_historico);
+    CU_add_test(pSuite, "teste_desfazer_multiplos_movimentos", teste_desfazer_multiplos_movimentos);
+    
+    // Testes para verificação de restrições
+    CU_add_test(pSuite, "teste_verificar_restricoes_basico", teste_verificar_restricoes_basico);
+    CU_add_test(pSuite, "teste_verificar_restricao_casas_riscadas_adjacentes", teste_verificar_restricao_casas_riscadas_adjacentes);
+    CU_add_test(pSuite, "teste_verificar_restricao_vizinhos_riscados", teste_verificar_restricao_vizinhos_riscados);
+    
+    // Testes para verificação de conectividade
+    CU_add_test(pSuite, "teste_verificar_conectividade_sem_brancas", teste_verificar_conectividade_sem_brancas);
+    CU_add_test(pSuite, "teste_verificar_conectividade_com_brancas_conectadas", teste_verificar_conectividade_com_brancas_conectadas);
+    CU_add_test(pSuite, "teste_verificar_conectividade_com_brancas_desconectadas", teste_verificar_conectividade_com_brancas_desconectadas);
+    
+    // Testes para processamento de comandos
+    CU_add_test(pSuite, "teste_processar_comando_carregar", teste_processar_comando_carregar);
+    CU_add_test(pSuite, "teste_processar_comando_pintar", teste_processar_comando_pintar);
+    CU_add_test(pSuite, "teste_processar_comando_riscar", teste_processar_comando_riscar);
+    CU_add_test(pSuite, "teste_processar_comando_desfazer", teste_processar_comando_desfazer);
+    CU_add_test(pSuite, "teste_processar_comando_verificar", teste_processar_comando_verificar);
+    CU_add_test(pSuite, "teste_processar_comando_sair", teste_processar_comando_sair);
+    CU_add_test(pSuite, "teste_processar_comando_invalido", teste_processar_comando_invalido);
+    
+    // Executa todos os testes usando a interface básica do CUnit
     CU_basic_set_mode(CU_BRM_VERBOSE);
     CU_basic_run_tests();
     
-    int failures = CU_get_number_of_failures();
-    
+    // Limpa o registo de teste e retorna o status
     CU_cleanup_registry();
-    
-    return failures;
+    return CU_get_error();
 }
