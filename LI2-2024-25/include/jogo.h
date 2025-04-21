@@ -34,7 +34,7 @@ int verificarRestricoes(Jogo *jogo);
 
 void registarMovimento(Jogo *jogo, int linha, int coluna, char estadoAnterior);
 
-void liberarHistoricoMovimentos(Movimento *historico);
+void freeHistoricoMovimentos(Movimento *historico);
 
 void dfs(Jogo *jogo, int **visitado, int *visitadas, int linha, int coluna);
 

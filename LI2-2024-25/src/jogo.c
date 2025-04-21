@@ -242,7 +242,7 @@ int verificarRestricoes(Jogo *jogo) {
 }
 
 
-void liberarHistoricoMovimentos(Movimento *historico) {
+void freeHistoricoMovimentos(Movimento *historico) {
     while (historico != NULL) {
         Movimento *temp = historico;
         historico = historico->proximo;
@@ -260,7 +260,7 @@ void freeJogo(Jogo *jogo) {
         }
         
         // Libera a memória do histórico de movimentos
-        liberarHistoricoMovimentos(jogo->historicoMovimentos);
+        freeHistoricoMovimentos(jogo->historicoMovimentos);
         
         free(jogo);
     }
@@ -397,7 +397,7 @@ int processarComandos(Jogo **jogo, char *comando) {
                 free((*jogo)->tabuleiro);
                 
                 // Libera a memória do histórico de movimentos
-                liberarHistoricoMovimentos((*jogo)->historicoMovimentos);
+                freeHistoricoMovimentos((*jogo)->historicoMovimentos);
                 
                 free(*jogo);
                 *jogo = NULL;

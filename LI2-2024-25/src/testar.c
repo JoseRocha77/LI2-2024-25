@@ -416,6 +416,25 @@ void teste_verificar_conectividade_com_brancas_desconectadas_diagonal() {
     limpar_arquivo_teste();
 }
 
+void teste_verificar_conectividade_com_brancas_desconectadas_e_conectadas() {
+    criar_arquivo_teste();
+    Jogo *jogo = carregarJogo(TABULEIRO_TEST);
+    
+    // Pinta casas brancas não adjacentes
+    pintarBranco(jogo, "a1");
+    pintarBranco(jogo, "a2");
+    pintarBranco(jogo, "a3");
+    pintarBranco(jogo, "e3");
+    pintarBranco(jogo, "e3");
+    
+    int resultado = verificarConectividadeBrancas(jogo);
+    
+    CU_ASSERT_EQUAL(resultado, -1);
+    
+    freeJogo(jogo);
+    limpar_arquivo_teste();
+}
+
 
 // ===== Testes para processamento de comandos =====
 
@@ -497,6 +516,19 @@ void teste_processar_comando_sair() {
     limpar_arquivo_teste();
 }
 
+void teste_processar_comando_gravar() {
+    criar_arquivo_teste();
+    Jogo *jogo = carregarJogo(TABULEIRO_TEST);
+    
+    int resultado = processarComandos(&jogo, "g");
+    
+    CU_ASSERT_EQUAL(resultado, -1); // 1 indica sair
+    
+    freeJogo(jogo);
+    limpar_arquivo_teste();
+}
+
+
 void teste_processar_comando_invalido() {
     criar_arquivo_teste();
     Jogo *jogo = carregarJogo(TABULEIRO_TEST);
@@ -552,31 +584,6 @@ void teste_gravar_jogo_invalido() {
     int resultado = gravarJogo(jogo, "/diretorio_inexistente/jogo.txt");
     
     CU_ASSERT_EQUAL(resultado, -1);
-    
-    freeJogo(jogo);
-    limpar_arquivo_teste();
-}
-
-void teste_processar_comando_gravar() {
-    criar_arquivo_teste();
-    Jogo *jogo = carregarJogo(TABULEIRO_TEST);
-    
-    // Modifica o jogo
-    processarComandos(&jogo, "b a1");
-    
-    // Grava o jogo
-    int resultado = processarComandos(&jogo, "g jogo_salvo.txt");
-    
-    CU_ASSERT_EQUAL(resultado, 0);
-    
-    // Verifica se o arquivo foi criado
-    FILE *file = fopen("jogo_salvo.txt", "r");
-    CU_ASSERT_PTR_NOT_NULL(file);
-    
-    if (file) {
-        fclose(file);
-        remove("jogo_salvo.txt");
-    }
     
     freeJogo(jogo);
     limpar_arquivo_teste();
@@ -641,6 +648,8 @@ int main() {
     CU_add_test(pSuite, "teste_verificar_conectividade_com_brancas_conectadas_com_biforcação", teste_verificar_conectividade_com_brancas_conectadas_com_biforcação);
     CU_add_test(pSuite, "teste_verificar_conectividade_com_brancas_desconectadas", teste_verificar_conectividade_com_brancas_desconectadas);
     CU_add_test(pSuite, "teste_verificar_conectividade_com_brancas_desconectadas_diagonal", teste_verificar_conectividade_com_brancas_desconectadas_diagonal);
+    CU_add_test(pSuite, "teste_verificar_conectividade_com_brancas_desconectadas_e_conectadas", teste_verificar_conectividade_com_brancas_desconectadas_e_conectadas);
+
     // Testes para processamento de comandos
     CU_add_test(pSuite, "teste_processar_comando_carregar", teste_processar_comando_carregar);
     CU_add_test(pSuite, "teste_processar_comando_pintar", teste_processar_comando_pintar);
@@ -648,12 +657,12 @@ int main() {
     CU_add_test(pSuite, "teste_processar_comando_desfazer", teste_processar_comando_desfazer);
     CU_add_test(pSuite, "teste_processar_comando_verificar", teste_processar_comando_verificar);
     CU_add_test(pSuite, "teste_processar_comando_sair", teste_processar_comando_sair);
+    CU_add_test(pSuite, "teste_processar_comando_gravar", teste_processar_comando_gravar);
     CU_add_test(pSuite, "teste_processar_comando_invalido", teste_processar_comando_invalido);
     
     // Testes para gravação de jogo
     CU_add_test(pSuite, "teste_gravar_jogo_valido", teste_gravar_jogo_valido);
     CU_add_test(pSuite, "teste_gravar_jogo_invalido", teste_gravar_jogo_invalido);
-    CU_add_test(pSuite, "teste_processar_comando_gravar", teste_processar_comando_gravar);
 
     // Executa todos os testes usando a interface básica do CUnit
     CU_basic_set_mode(CU_BRM_VERBOSE);
