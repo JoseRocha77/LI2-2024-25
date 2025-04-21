@@ -10,12 +10,14 @@ int main(void) {
     printf("\n====================Bem-vindo ao jogo Puzzle Hitori!====================\n");
     printf("\nUse 'l <nome_arquivo>' para carregar um jogo.\n");
     printf("Comandos disponíveis:\n");
-    printf("  l <arquivo>   - Carregar jogo\n");
+    printf("  l <arquivo.txt>   - Carregar jogo\n");
+    printf("  g <arquivo.txt>   - Gravar jogo\n");
     printf("  b <posicao>   - Pintar de branco\n");
     printf("  r <posicao>   - Riscar\n");
     printf("  d             - Desfazer último movimento\n");
     printf("  v             - Verificar restrições\n");
     printf("  s             - Sair do jogo\n\n");
+
 
     char comando[100];  
     while (1) {

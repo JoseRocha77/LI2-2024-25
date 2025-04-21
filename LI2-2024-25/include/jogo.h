@@ -40,4 +40,6 @@ void dfs(Jogo *jogo, int **visitado, int *visitadas, int linha, int coluna);
 
 int verificarConectividadeBrancas(Jogo *jogo);
 
+int gravarJogo(Jogo *jogo, char *arquivo);
+
 #endif

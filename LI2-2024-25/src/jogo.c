@@ -432,8 +432,8 @@ int processarComandos(Jogo **jogo, char *comando) {
     if (sscanf(comando, "%c %2s", &tipoComando, posicao) != 2) {
         printf("Comando inválido: %s\n", comando);
         printf("Comandos válidos:\n");
-        printf("  l <arquivo>   - Carregar jogo\n");
-        printf("  g <arquivo>   - Gravar jogo\n");
+        printf("  l <arquivo.txt>   - Carregar jogo\n");
+        printf("  g <arquivo.txt>   - Gravar jogo\n");
         printf("  b <posicao>   - Pintar de branco\n");
         printf("  r <posicao>   - Riscar\n");
         printf("  d             - Desfazer último movimento\n");
@@ -474,8 +474,8 @@ int processarComandos(Jogo **jogo, char *comando) {
     // Se não corresponde a nenhum comando válido
     printf("Comando inválido: %s\n", comando);
     printf("Comandos válidos:\n");
-    printf("  l <arquivo>   - Carregar jogo\n");
-    printf("  g <arquivo>   - Gravar jogo\n");
+    printf("  l <arquivo.txt>   - Carregar jogo\n");
+    printf("  g <arquivo.txt>   - Gravar jogo\n");
     printf("  b <posicao>   - Pintar de branco\n");
     printf("  r <posicao>   - Riscar\n");
     printf("  d             - Desfazer último movimento\n");

@@ -1,10 +1,10 @@
 CC = gcc
-CFLAGS = -Wall -Wextra -pedantic -O1 -fsanitize=address -fno-omit-frame-pointer -g
+CFLAGS = -Wall -Wextra -pedantic -O1 -fsanitize=address -fno-omit-frame-pointer -g --coverage
 INCLUDE = -I./include
-LDFLAGS = -lm
+LDFLAGS = -lm --coverage
 CUNIT_LDFLAGS = -lcunit
 
-SOURCES = src/main.c src/jogo.c 
+SOURCES = src/main.c src/jogo.c
 OBJECTS = src/main.o src/jogo.o
 EXECUTABLE = jogo
 
@@ -12,32 +12,23 @@ TEST_SOURCES = src/testar.c src/jogo.c
 TEST_OBJECTS = src/testar.o src/jogo.o
 TEST_EXECUTABLE = testar
 
-.PHONY: all jogo testar clean
+.PHONY: all jogo clean test coverage
 
-all: jogo testar
+all: jogo
 
 jogo: $(OBJECTS)
 	$(CC) $(OBJECTS) -o $(EXECUTABLE) $(CFLAGS) $(LDFLAGS)
-
-src/testar.o: src/testar.c
-	$(CC) -c $< -o $@ $(CFLAGS) $(INCLUDE)
-
-testar: $(TEST_OBJECTS)
-	$(CC) $(TEST_OBJECTS) -o $(TEST_EXECUTABLE) $(CFLAGS) $(LDFLAGS) $(CUNIT_LDFLAGS)
-	./$(TEST_EXECUTABLE)
-    
-gcov: clean
-	$(CC) -fprofile-arcs -ftest-coverage $(SOURCES) $(TEST_SOURCES) -o $(TEST_EXECUTABLE) $(LDFLAGS) $(CUNIT_LDFLAGS)
-	./$(TEST_EXECUTABLE)
-	gcov $(SOURCES) $(TEST_SOURCES)
 
 %.o: %.c
 	$(CC) -c $< -o $@ $(CFLAGS) $(INCLUDE)
 
 clean:
-	rm -f $(OBJECTS) $(TEST_OBJECTS) $(EXECUTABLE) $(TEST_EXECUTABLE) *.gcda *.gcno *.gcov src/*.o
+	rm -f $(OBJECTS) $(EXECUTABLE) $(TEST_EXECUTABLE) *.gcda *.gcno *.gcov src/*.o src/*.gcda src/*.gcno src/*.gcov
 
-coverage: $(TEST_EXEC)
-	mkdir -p coverage
-	gcov -o $(OBJ_DIR) $(SRC_DIR)/*.c
-	mv *.gcov coverage/
+# --- Testes unitários com gcov ---
+testar: $(TEST_OBJECTS)
+	$(CC) $(TEST_OBJECTS) -o $(TEST_EXECUTABLE) $(CFLAGS) $(LDFLAGS) $(CUNIT_LDFLAGS)
+	./$(TEST_EXECUTABLE)
+
+coverage: clean testar
+	gcov src/*.c
