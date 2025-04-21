@@ -339,9 +339,51 @@ int verificarConectividadeBrancas(Jogo *jogo) {
     }
 }
 
+int gravarJogo(Jogo *jogo, char *arquivo) {
+    if (!jogo || !arquivo) return -1;
+    
+    FILE *output = fopen(arquivo, "w");
+    if (!output) {
+        printf("Erro ao abrir arquivo %s para escrita\n", arquivo);
+        return -1;
+    }
+    
+    // Escreve as dimensões do tabuleiro
+    fprintf(output, "%d %d\n", jogo->linhas, jogo->colunas);
+    
+    // Escreve o conteúdo do tabuleiro
+    for (int i = 0; i < jogo->linhas; i++) {
+        for (int j = 0; j < jogo->colunas; j++) {
+            fputc(jogo->tabuleiro[i][j], output);
+        }
+        fputc('\n', output);
+    }
+    
+    fclose(output);
+    printf("Jogo salvo com sucesso em '%s'\n", arquivo);
+    return 0;
+}
+
 
 int processarComandos(Jogo **jogo, char *comando) {
     if (!jogo || !comando) return -1;
+
+    // Comando para sair do jogo
+    if (strcmp(comando, "s") == 0) {
+        printf("Saindo do jogo...\n");
+        return 1;
+    }
+
+    // Comando para gravar jogo
+    if (comando[0] == 'g' && comando[1] == ' ') {
+        char arquivo[100];
+        if (sscanf(comando, "g %99s", arquivo) == 1) {
+            return gravarJogo(*jogo, arquivo);
+        } else {
+            printf("Formato inválido. Use 'g <arquivo>'\n");
+            return -1;
+        }
+    }
 
     // Comando para carregar arquivo
     if (comando[0] == 'l' && comando[1] == ' ') {
@@ -373,11 +415,6 @@ int processarComandos(Jogo **jogo, char *comando) {
         return -1;
     }
 
-    // Comando para sair do jogo
-    if (strcmp(comando, "s") == 0) {
-        printf("Saindo do jogo...\n");
-        return 1;
-    }
     
     // Comando para desfazer o último movimento
     if (strcmp(comando, "d") == 0) {
@@ -396,6 +433,7 @@ int processarComandos(Jogo **jogo, char *comando) {
         printf("Comando inválido: %s\n", comando);
         printf("Comandos válidos:\n");
         printf("  l <arquivo>   - Carregar jogo\n");
+        printf("  g <arquivo>   - Gravar jogo\n");
         printf("  b <posicao>   - Pintar de branco\n");
         printf("  r <posicao>   - Riscar\n");
         printf("  d             - Desfazer último movimento\n");
@@ -437,6 +475,7 @@ int processarComandos(Jogo **jogo, char *comando) {
     printf("Comando inválido: %s\n", comando);
     printf("Comandos válidos:\n");
     printf("  l <arquivo>   - Carregar jogo\n");
+    printf("  g <arquivo>   - Gravar jogo\n");
     printf("  b <posicao>   - Pintar de branco\n");
     printf("  r <posicao>   - Riscar\n");
     printf("  d             - Desfazer último movimento\n");
