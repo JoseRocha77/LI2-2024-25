@@ -52,7 +52,7 @@ Jogo* carregarJogo(char *arquivo) {
             return NULL;
         }
 
-        // Lê cada caractere individualmente
+        // Lê cada carater individualmente
         for (int j = 0; j < jogo->colunas; j++) {
             int ch = fgetc(input);
             if (ch == EOF || ch == '\n') {
@@ -92,7 +92,7 @@ void desenhaJogo (Jogo *jogo) {
     }
 }
 
-void registrarMovimento(Jogo *jogo, int linha, int coluna, char estadoAnterior) {
+void registarMovimento(Jogo *jogo, int linha, int coluna, char estadoAnterior) {
     Movimento *novoMovimento = malloc(sizeof(Movimento));
     if (!novoMovimento) {
         printf("Erro na alocação de memória para o histórico.\n");
@@ -116,8 +116,8 @@ int pintarBranco(Jogo *jogo, char *coordenada){
         return -1;
     }
     
-    // Registra o movimento antes de alterá-lo
-    registrarMovimento(jogo, linha, coluna, jogo->tabuleiro[linha][coluna]);
+    // Regista o movimento antes de alterá-lo
+    registarMovimento(jogo, linha, coluna, jogo->tabuleiro[linha][coluna]);
     
     if (jogo->tabuleiro[linha][coluna] >= 'a' && jogo->tabuleiro[linha][coluna] <= 'z') {
         jogo->tabuleiro[linha][coluna] = jogo->tabuleiro[linha][coluna] - 32; //converter para maiscula
@@ -138,8 +138,8 @@ int riscar(Jogo *jogo, char *coordenada) {
         return -1;
     }
     
-    // Registra o movimento antes de alterá-lo
-    registrarMovimento(jogo, linha, coluna, jogo->tabuleiro[linha][coluna]);
+    // Regista o movimento antes de alterá-lo
+    registarMovimento(jogo, linha, coluna, jogo->tabuleiro[linha][coluna]);
     
     jogo->tabuleiro[linha][coluna] = '#';
     return 0;
@@ -179,58 +179,68 @@ int verificarRestricoes(Jogo *jogo) {
                            'a' + j, i + 1, 'a' + j + 1, i + 1);
                     violacoes++;
                 }
-                
+
                 // Verifica vizinho abaixo
                 if (i < jogo->linhas - 1 && jogo->tabuleiro[i+1][j] == '#') {
                     printf("Violação: Casas riscadas adjacentes em (%c%d) e (%c%d)\n", 
                            'a' + j, i + 1, 'a' + j, i + 2);
                     violacoes++;
                 }
-                
-                // Verificar se vizinhos ortogonais estão pintados de branco
-                // Vizinho acima
+
+                // Verifica se vizinhos ortogonais são brancos
+                // Cima
                 if (i > 0 && jogo->tabuleiro[i-1][j] != '#' && 
                     !(jogo->tabuleiro[i-1][j] >= 'A' && jogo->tabuleiro[i-1][j] <= 'Z')) {
-                    printf("Violação: Casa (%c%d) riscada, mas seu vizinho (%c%d) não está pintado de branco\n", 
+                    printf("Violação: Casa (%c%d) riscada, mas o vizinho acima (%c%d) não é branco\n", 
                            'a' + j, i + 1, 'a' + j, i);
                     violacoes++;
                 }
-                
-                // Vizinho abaixo
+
+                // Baixo
                 if (i < jogo->linhas - 1 && jogo->tabuleiro[i+1][j] != '#' && 
                     !(jogo->tabuleiro[i+1][j] >= 'A' && jogo->tabuleiro[i+1][j] <= 'Z')) {
-                    printf("Violação: Casa (%c%d) riscada, mas seu vizinho (%c%d) não está pintado de branco\n", 
+                    printf("Violação: Casa (%c%d) riscada, mas o vizinho abaixo (%c%d) não é branco\n", 
                            'a' + j, i + 1, 'a' + j, i + 2);
                     violacoes++;
                 }
-                
-                // Vizinho à esquerda
+
+                // Esquerda
                 if (j > 0 && jogo->tabuleiro[i][j-1] != '#' && 
                     !(jogo->tabuleiro[i][j-1] >= 'A' && jogo->tabuleiro[i][j-1] <= 'Z')) {
-                    printf("Violação: Casa (%c%d) riscada, mas seu vizinho (%c%d) não está pintado de branco\n", 
+                    printf("Violação: Casa (%c%d) riscada, mas o vizinho à esquerda (%c%d) não é branco\n", 
                            'a' + j, i + 1, 'a' + j - 1, i + 1);
                     violacoes++;
                 }
-                
-                // Vizinho à direita
+
+                // Direita
                 if (j < jogo->colunas - 1 && jogo->tabuleiro[i][j+1] != '#' && 
                     !(jogo->tabuleiro[i][j+1] >= 'A' && jogo->tabuleiro[i][j+1] <= 'Z')) {
-                    printf("Violação: Casa (%c%d) riscada, mas seu vizinho (%c%d) não está pintado de branco\n", 
+                    printf("Violação: Casa (%c%d) riscada, mas o vizinho à direita (%c%d) não é branco\n", 
                            'a' + j, i + 1, 'a' + j + 1, i + 1);
                     violacoes++;
                 }
             }
         }
     }
-    
+
+    // Verificação adicional: conectividade das casas brancas
+    int conectividade = verificarConectividadeBrancas(jogo);
+    if (conectividade != 0) {
+        printf("Violação: As casas brancas não estão todas conectadas ortogonalmente.\n");
+        violacoes++;
+    }
+
     if (violacoes == 0) {
         printf("Nenhuma violação de restrição foi encontrada.\n");
     } else {
         printf("Total de %d violações encontradas.\n", violacoes);
+        printf("Use o comando 'd' se pretender desfazer o último movimento.\n");
     }
     
-    return violacoes;
+
+    return 0;
 }
+
 
 void liberarHistoricoMovimentos(Movimento *historico) {
     while (historico != NULL) {
@@ -255,6 +265,80 @@ void freeJogo(Jogo *jogo) {
         free(jogo);
     }
 }
+
+// DFS fora da função principal
+void dfs(Jogo *jogo, int **visitado, int *visitadas, int linha, int coluna) {
+    if (linha < 0 || linha >= jogo->linhas || coluna < 0 || coluna >= jogo->colunas) return;
+    if (visitado[linha][coluna]) return;
+    if (!(jogo->tabuleiro[linha][coluna] >= 'A' && jogo->tabuleiro[linha][coluna] <= 'Z')) return;
+
+    // Marca como visitado e incrementa o contador de casas brancas conectadas
+    visitado[linha][coluna] = 1;
+    (*visitadas)++;
+
+    // Move-se recursivamente para casas brancas vizinhas ortogonais
+    dfs(jogo, visitado, visitadas, linha - 1, coluna); // cima
+    dfs(jogo, visitado, visitadas, linha + 1, coluna); // baixo
+    dfs(jogo, visitado, visitadas, linha, coluna - 1); // esquerda
+    dfs(jogo, visitado, visitadas, linha, coluna + 1); // direita
+}
+
+int verificarConectividadeBrancas(Jogo *jogo) {
+    if (!jogo) return -1;
+
+    int totalBrancas = 0;
+    int visitadas = 0;
+
+    int **visitado = malloc(jogo->linhas * sizeof(int *));
+    if (!visitado) {
+        printf("Erro ao alocar matriz de visitados.\n");
+        return -1;
+    }
+    for (int i = 0; i < jogo->linhas; i++) {
+        visitado[i] = calloc(jogo->colunas, sizeof(int));
+        if (!visitado[i]) {
+            for (int j = 0; j < i; j++) free(visitado[j]);
+            free(visitado);
+            printf("Erro ao alocar linha da matriz de visitados.\n");
+            return -1;
+        }
+    }
+
+    int inicioLinha = -1, inicioColuna = -1;
+    for (int i = 0; i < jogo->linhas; i++) {
+        for (int j = 0; j < jogo->colunas; j++) {
+            if (jogo->tabuleiro[i][j] >= 'A' && jogo->tabuleiro[i][j] <= 'Z') {
+                totalBrancas++;
+                if (inicioLinha == -1) {
+                    inicioLinha = i;
+                    inicioColuna = j;
+                }
+            }
+        }
+    }
+
+    if (totalBrancas == 0) {
+        printf("Não há casas brancas no tabuleiro.\n");
+        for (int i = 0; i < jogo->linhas; i++) free(visitado[i]);
+        free(visitado);
+        return 0;
+    }
+
+    // Chama a função DFS com ponteiro para visitadas
+    dfs(jogo, visitado, &visitadas, inicioLinha, inicioColuna);
+
+    for (int i = 0; i < jogo->linhas; i++) free(visitado[i]);
+    free(visitado);
+
+    if (visitadas == totalBrancas) {
+        printf("Todas as casas brancas estão conectadas.\n");
+        return 0;
+    } else {
+        printf("Casas brancas desconectadas encontradas: %d de %d conectadas.\n", visitadas, totalBrancas);
+        return -1;
+    }
+}
+
 
 int processarComandos(Jogo **jogo, char *comando) {
     if (!jogo || !comando) return -1;
@@ -347,6 +431,7 @@ int processarComandos(Jogo **jogo, char *comando) {
     if (tipoComando == 'r') {
         return riscar(*jogo, posicao);
     }
+    
 
     // Se não corresponde a nenhum comando válido
     printf("Comando inválido: %s\n", comando);

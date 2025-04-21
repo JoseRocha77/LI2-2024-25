@@ -32,8 +32,12 @@ int desfazerMovimento(Jogo *jogo);
 
 int verificarRestricoes(Jogo *jogo);
 
-void registrarMovimento(Jogo *jogo, int linha, int coluna, char estadoAnterior);
+void registarMovimento(Jogo *jogo, int linha, int coluna, char estadoAnterior);
 
 void liberarHistoricoMovimentos(Movimento *historico);
+
+void dfs(Jogo *jogo, int **visitado, int *visitadas, int linha, int coluna);
+
+int verificarConectividadeBrancas(Jogo *jogo);
 
 #endif

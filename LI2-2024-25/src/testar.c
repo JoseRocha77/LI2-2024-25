@@ -160,12 +160,12 @@ void teste_processarComandos() {
 }
 
 int main() {
-    // Inicializa o registro do CUnit
+    // Inicializa o registo do CUnit
     if (CUE_SUCCESS != CU_initialize_registry()) {
         return CU_get_error();
     }
 
-    // Adiciona a suite ao registro
+    // Adiciona a suite ao registo
     CU_pSuite suite = CU_add_suite("Suite de testes do jogo", init_suite, clean_suite);
     if (NULL == suite) {
         CU_cleanup_registry();
@@ -186,7 +186,7 @@ int main() {
     CU_basic_set_mode(CU_BRM_VERBOSE);
     CU_basic_run_tests();
     
-    // Limpa o registro do CUnit
+    // Limpa o registo do CUnit
     CU_cleanup_registry();
     
     return CU_get_error();
@@ -312,8 +312,8 @@ void testVerificarRestricoesNenhumaViolacao() {
     freeJogo(jogo);
 }
 
-// Teste para a função registrarMovimento
-void testRegistrarMovimento() {
+// Teste para a função registarMovimento
+void testRegist§arMovimento() {
     Jogo *jogo = criarJogoTeste();
     
     // Estado inicial do histórico
@@ -324,7 +324,7 @@ void testRegistrarMovimento() {
     char estadoInicial = jogo->tabuleiro[0][0];
     riscar(jogo, coord);
     
-    // Verificar se o movimento foi registrado corretamente
+    // Verificar se o movimento foi registado corretamente
     CU_ASSERT_PTR_NOT_NULL(jogo->historicoMovimentos);
     CU_ASSERT_EQUAL(jogo->historicoMovimentos->linha, 0);
     CU_ASSERT_EQUAL(jogo->historicoMovimentos->coluna, 0);
@@ -399,7 +399,7 @@ int main() {
     CU_add_test(suite, "testVerificarRestricoesRiscadasAdjacentes", testVerificarRestricoesRiscadasAdjacentes);
     CU_add_test(suite, "testVerificarRestricoesVizinhosNaoBrancos", testVerificarRestricoesVizinhosNaoBrancos);
     CU_add_test(suite, "testVerificarRestricoesNenhumaViolacao", testVerificarRestricoesNenhumaViolacao);
-    CU_add_test(suite, "testRegistrarMovimento", testRegistrarMovimento);
+    CU_add_test(suite, "testRegistarMovimento", testRegistarMovimento);
     CU_add_test(suite, "testLiberarHistoricoMovimentos", testLiberarHistoricoMovimentos);
     CU_add_test(suite, "testProcessarComandosDesfazer", testProcessarComandosDesfazer);
     CU_add_test(suite, "testProcessarComandosVerificar", testProcessarComandosVerificar);
