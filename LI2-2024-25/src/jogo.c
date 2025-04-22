@@ -144,7 +144,7 @@ int riscar(Jogo *jogo, char *coordenada) {
     jogo->tabuleiro[linha][coluna] = '#';
     return 0;
 }
-
+/* 
 int desfazerMovimento(Jogo *jogo) {
     if (!jogo || !jogo->historicoMovimentos) {
         printf("Não há movimento para desfazer.\n");
@@ -161,6 +161,36 @@ int desfazerMovimento(Jogo *jogo) {
     free(ultimoMovimento);
     
     printf("Movimento desfeito.\n");
+    return 0;
+}
+*/
+
+int desfazerMovimento(Jogo *jogo) {
+    if (!jogo || !jogo->historicoMovimentos) {
+        printf("Não há movimento para desfazer.\n");
+        return -1;
+    }
+
+    Movimento *ultimoMovimento = jogo->historicoMovimentos;
+
+    // Valor que será substituído (o valor atual do tabuleiro antes de desfazer)
+    char valorAtual = jogo->tabuleiro[ultimoMovimento->linha][ultimoMovimento->coluna];
+
+    // Restaura o estado anterior
+    jogo->tabuleiro[ultimoMovimento->linha][ultimoMovimento->coluna] = ultimoMovimento->estadoAnterior;
+
+    // Remove o movimento do histórico
+    jogo->historicoMovimentos = ultimoMovimento->proximo;
+
+    printf(
+        "Movimento desfeito na posição (%c,%d): '%c' voltou para '%c'.\n",
+        ultimoMovimento->coluna + 'a',
+        ultimoMovimento->linha + 1 ,
+        valorAtual,
+        ultimoMovimento->estadoAnterior
+    );
+
+    free(ultimoMovimento);
     return 0;
 }
 
