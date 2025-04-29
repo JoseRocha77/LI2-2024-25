@@ -354,7 +354,7 @@ int verificarConectividadeBrancas(Jogo *jogo) {
         return 0;
     }
 
-    // Chama a função DFS com ponteiro para visitadas
+    // Chama a função DFS com apontador para visitadas
     dfs(jogo, visitado, &visitadas, inicioLinha, inicioColuna);
 
     for (int i = 0; i < jogo->linhas; i++) free(visitado[i]);
