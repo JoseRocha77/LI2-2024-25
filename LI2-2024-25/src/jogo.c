@@ -4,6 +4,8 @@
 #include <string.h>
 #include "../include/jogo.h"
 
+// Funções etapa 1 ===================================================================================
+
 Jogo* carregarJogo(char *arquivo) {
     FILE *input = fopen(arquivo, "r");
     if (!input) {
@@ -139,6 +141,51 @@ void carregarHistoricoMovimentos(FILE *input, Jogo *jogo) {
     fclose(input);
 }
 
+
+
+int gravarJogo(Jogo *jogo, char *arquivo) {
+    if (!jogo || !arquivo) return -1;
+    
+    FILE *output = fopen(arquivo, "w");
+    if (!output) {
+        printf("Erro ao abrir arquivo %s para escrita\n", arquivo);
+        return -1;
+    }
+    
+    // Escreve as dimensões do tabuleiro
+    fprintf(output, "%d %d\n", jogo->linhas, jogo->colunas);
+    
+    // Escreve o conteúdo do tabuleiro
+    for (int i = 0; i < jogo->linhas; i++) {
+        for (int j = 0; j < jogo->colunas; j++) {
+            fputc(jogo->tabuleiro[i][j], output);
+        }
+        fputc('\n', output);
+    }
+    
+    // Conta quantos movimentos estão no histórico
+    int numMovimentos = 0;
+    Movimento *atual = jogo->historicoMovimentos;
+    while (atual != NULL) {
+        numMovimentos++;
+        atual = atual->proximo;
+    }
+    
+    // Escreve o número de movimentos
+    fprintf(output, "%d\n", numMovimentos);
+    
+    // Escreve cada movimento do histórico (do mais recente para o mais antigo)
+    atual = jogo->historicoMovimentos;
+    while (atual != NULL) {
+        fprintf(output, "%d %d %c\n", atual->linha, atual->coluna, atual->estadoAnterior);
+        atual = atual->proximo;
+    }
+    
+    fclose(output);
+    printf("Jogo salvo com sucesso em '%s'\n", arquivo);
+    return 0;
+}
+
 void desenhaJogo (Jogo *jogo) {
     //Desenhar letras correspondente às colunas
     printf("  ");
@@ -155,21 +202,6 @@ void desenhaJogo (Jogo *jogo) {
         }
         printf("\n");
     }
-}
-
-void registarMovimento(Jogo *jogo, int linha, int coluna, char estadoAnterior) {
-    Movimento *novoMovimento = malloc(sizeof(Movimento));
-    if (!novoMovimento) {
-        printf("Erro na alocação de memória para o histórico.\n");
-        return;
-    }
-    
-    novoMovimento->linha = linha;
-    novoMovimento->coluna = coluna;
-    novoMovimento->estadoAnterior = estadoAnterior;
-    novoMovimento->proximo = jogo->historicoMovimentos;
-    
-    jogo->historicoMovimentos = novoMovimento;
 }
 
 int pintarBranco(Jogo *jogo, char *coordenada){
@@ -209,26 +241,42 @@ int riscar(Jogo *jogo, char *coordenada) {
     jogo->tabuleiro[linha][coluna] = '#';
     return 0;
 }
-/* 
-int desfazerMovimento(Jogo *jogo) {
-    if (!jogo || !jogo->historicoMovimentos) {
-        printf("Não há movimento para desfazer.\n");
-        return -1;
+
+void freeJogo(Jogo *jogo) {
+    if (jogo != NULL) {
+        if (jogo->tabuleiro != NULL) {
+            for (int i = 0; i < jogo->linhas; i++) {
+                free(jogo->tabuleiro[i]);
+            }
+            free(jogo->tabuleiro);
+        }
+        
+        // Libera a memória do histórico de movimentos
+        freeHistoricoMovimentos(jogo->historicoMovimentos);
+        
+        free(jogo);
+    }
+}
+
+
+
+// Funções etapa 2 ===================================================================================
+
+void registarMovimento(Jogo *jogo, int linha, int coluna, char estadoAnterior) {
+    Movimento *novoMovimento = malloc(sizeof(Movimento));
+    if (!novoMovimento) {
+        printf("Erro na alocação de memória para o histórico.\n");
+        return;
     }
     
-    Movimento *ultimoMovimento = jogo->historicoMovimentos;
+    novoMovimento->linha = linha;
+    novoMovimento->coluna = coluna;
+    novoMovimento->estadoAnterior = estadoAnterior;
+    novoMovimento->proximo = jogo->historicoMovimentos;
     
-    // Restaura o estado anterior
-    jogo->tabuleiro[ultimoMovimento->linha][ultimoMovimento->coluna] = ultimoMovimento->estadoAnterior;
-    
-    // Remove o movimento do histórico
-    jogo->historicoMovimentos = ultimoMovimento->proximo;
-    free(ultimoMovimento);
-    
-    printf("Movimento desfeito.\n");
-    return 0;
+    jogo->historicoMovimentos = novoMovimento;
 }
-*/
+
 
 int desfazerMovimento(Jogo *jogo) {
     if (!jogo || !jogo->historicoMovimentos) {
@@ -345,21 +393,9 @@ void freeHistoricoMovimentos(Movimento *historico) {
     }
 }
 
-void freeJogo(Jogo *jogo) {
-    if (jogo != NULL) {
-        if (jogo->tabuleiro != NULL) {
-            for (int i = 0; i < jogo->linhas; i++) {
-                free(jogo->tabuleiro[i]);
-            }
-            free(jogo->tabuleiro);
-        }
-        
-        // Libera a memória do histórico de movimentos
-        freeHistoricoMovimentos(jogo->historicoMovimentos);
-        
-        free(jogo);
-    }
-}
+
+
+// Funções etapa 3 ===================================================================================
 
 // DFS fora da função principal
 void dfs(Jogo *jogo, int **visitado, int *visitadas, int linha, int coluna) {
@@ -433,74 +469,7 @@ int verificarConectividadeBrancas(Jogo *jogo) {
     return -1;
 }
 
-// int gravarJogo(Jogo *jogo, char *arquivo) {
-//     if (!jogo || !arquivo) return -1;
-    
-//     FILE *output = fopen(arquivo, "w");
-//     if (!output) {
-//         printf("Erro ao abrir arquivo %s para escrita\n", arquivo);
-//         return -1;
-//     }
-    
-//     // Escreve as dimensões do tabuleiro
-//     fprintf(output, "%d %d\n", jogo->linhas, jogo->colunas);
-    
-//     // Escreve o conteúdo do tabuleiro
-//     for (int i = 0; i < jogo->linhas; i++) {
-//         for (int j = 0; j < jogo->colunas; j++) {
-//             fputc(jogo->tabuleiro[i][j], output);
-//         }
-//         fputc('\n', output);
-//     }
-    
-//     fclose(output);
-//     printf("Jogo salvo com sucesso em '%s'\n", arquivo);
-//     return 0;
-// }
-
-
-int gravarJogo(Jogo *jogo, char *arquivo) {
-    if (!jogo || !arquivo) return -1;
-    
-    FILE *output = fopen(arquivo, "w");
-    if (!output) {
-        printf("Erro ao abrir arquivo %s para escrita\n", arquivo);
-        return -1;
-    }
-    
-    // Escreve as dimensões do tabuleiro
-    fprintf(output, "%d %d\n", jogo->linhas, jogo->colunas);
-    
-    // Escreve o conteúdo do tabuleiro
-    for (int i = 0; i < jogo->linhas; i++) {
-        for (int j = 0; j < jogo->colunas; j++) {
-            fputc(jogo->tabuleiro[i][j], output);
-        }
-        fputc('\n', output);
-    }
-    
-    // Conta quantos movimentos estão no histórico
-    int numMovimentos = 0;
-    Movimento *atual = jogo->historicoMovimentos;
-    while (atual != NULL) {
-        numMovimentos++;
-        atual = atual->proximo;
-    }
-    
-    // Escreve o número de movimentos
-    fprintf(output, "%d\n", numMovimentos);
-    
-    // Escreve cada movimento do histórico (do mais recente para o mais antigo)
-    atual = jogo->historicoMovimentos;
-    while (atual != NULL) {
-        fprintf(output, "%d %d %c\n", atual->linha, atual->coluna, atual->estadoAnterior);
-        atual = atual->proximo;
-    }
-    
-    fclose(output);
-    printf("Jogo salvo com sucesso em '%s'\n", arquivo);
-    return 0;
-}
+// Funçaõ principal ================================================================================
 
 int processarComandos(Jogo **jogo, char *comando) {
     if (!jogo || !comando) return -1;

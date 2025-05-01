@@ -15,9 +15,12 @@ typedef struct{
     Movimento *historicoMovimentos;
 } Jogo;
 
+// Funções etapa 1
 Jogo* carregarJogo (char *arquivo);
 
 void carregarHistoricoMovimentos(FILE *input, Jogo *jogo);
+
+int gravarJogo(Jogo *jogo, char *arquivo);
 
 void desenhaJogo (Jogo *jogo);
 
@@ -27,21 +30,22 @@ int riscar (Jogo *jogo, char *coordenada);
 
 void freeJogo(Jogo *jogo);
 
-int processarComandos(Jogo **jogo, char *comando);
+// Funções etapa 2
+void registarMovimento(Jogo *jogo, int linha, int coluna, char estadoAnterior);
 
-// Funções novas para a etapa 2
 int desfazerMovimento(Jogo *jogo);
 
 int verificarRestricoes(Jogo *jogo);
 
-void registarMovimento(Jogo *jogo, int linha, int coluna, char estadoAnterior);
-
 void freeHistoricoMovimentos(Movimento *historico);
 
+// Funções etapa 3
 void dfs(Jogo *jogo, int **visitado, int *visitadas, int linha, int coluna);
 
 int verificarConectividadeBrancas(Jogo *jogo);
 
-int gravarJogo(Jogo *jogo, char *arquivo);
+// Função principal
+int processarComandos(Jogo **jogo, char *comando);
+
 
 #endif
