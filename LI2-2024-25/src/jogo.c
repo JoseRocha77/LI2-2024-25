@@ -22,6 +22,8 @@ Jogo* carregarJogo(char *arquivo) {
     
     // Inicializa o histórico de movimentos
     jogo->historicoMovimentos = NULL;
+    jogo->modoAjudaAtiva = 0; // Desativado por padrão
+
 
     // Lê as dimensões do tabuleiro
     if (fscanf(input, "%d %d\n", &jogo->linhas, &jogo->colunas) != 2) {
@@ -467,10 +469,100 @@ int verificarConectividadeBrancas(Jogo *jogo) {
     return -1;
 }
 
-// Funçaõ principal ================================================================================
+
+
+// Funções etapa 4 ==========================================================================================
+
+int ajudar(Jogo *jogo) {
+    // 1. Regra: riscar letras iguais a uma branca na linha ou coluna
+    for (int i = 0; i < jogo->linhas; i++) {
+        for (int j = 0; j < jogo->colunas; j++) {
+            char atual = jogo->tabuleiro[i][j];
+            if (atual >= 'A' && atual <= 'Z') { // Letra branca
+                // Verifica linha
+                for (int k = 0; k < jogo->colunas; k++) {
+                    if (jogo->tabuleiro[i][k] == atual + 32) {
+                        char coord[3] = { 'a' + k, '1' + i, '\0' };
+                        printf("Ajuda: riscar %s (igual a branca %c na linha)\n", coord, atual);
+                        riscar(jogo, coord);
+                        return 1;
+                    }
+                }
+                // Verifica coluna
+                for (int k = 0; k < jogo->linhas; k++) {
+                    if (jogo->tabuleiro[k][j] == atual + 32) {
+                        char coord[3] = { 'a' + j, '1' + k, '\0' };
+                        printf("Ajuda: riscar %s (igual a branca %c na coluna)\n", coord, atual);
+                        riscar(jogo, coord);
+                        return 1;
+                    }
+                }
+            }
+        }
+    }
+
+    // 2. Regra: pintar de branco todas as casas vizinhas de uma casa riscada
+    for (int i = 0; i < jogo->linhas; i++) {
+        for (int j = 0; j < jogo->colunas; j++) {
+            if (jogo->tabuleiro[i][j] == '#') {
+                int alterou = 0;
+                int di[] = {-1, 1, 0, 0};
+                int dj[] = {0, 0, -1, 1};
+                for (int d = 0; d < 4; d++) {
+                    int ni = i + di[d], nj = j + dj[d];
+                    if (ni >= 0 && ni < jogo->linhas && nj >= 0 && nj < jogo->colunas) {
+                        char viz = jogo->tabuleiro[ni][nj];
+                        if (viz >= 'a' && viz <= 'z') {
+                            char coord[3] = { 'a' + nj, '1' + ni, '\0' };
+                            pintarBranco(jogo, coord);
+                            alterou = 1;
+                        }
+                    }
+                }
+                if (alterou) {
+                    printf("Ajuda: pintar casas vizinhas de (%c%d)\n", 'a'+j, i+1);
+                    return 1;
+                }
+            }
+        }
+    }
+
+    // 3. Regra: pintar de branco casas que isolariam brancas se fossem riscadas
+    for (int i = 0; i < jogo->linhas; i++) {
+        for (int j = 0; j < jogo->colunas; j++) {
+            char c = jogo->tabuleiro[i][j];
+            if (c >= 'a' && c <= 'z') {
+                // Simula riscar esta casa
+                char original = jogo->tabuleiro[i][j];
+                jogo->tabuleiro[i][j] = '#';
+                int resultado = verificarConectividadeBrancas(jogo);
+                jogo->tabuleiro[i][j] = original;
+
+                if (resultado != 0) {
+                    char coord[3] = { 'a' + j, '1' + i, '\0' };
+                    printf("Ajuda: pintar de branco %s (evita isolamento)\n", coord);
+                    pintarBranco(jogo, coord);
+                    return 1;
+                }
+            }
+        }
+    }
+
+    printf("Nenhuma jogada inferida disponível.\n");
+    return 0;
+}
+
+
+
+
+
+// Função principal ===========================================================================================
+
+
 
 int processarComandos(Jogo **jogo, char *comando) {
     if (!jogo || !comando) return -1;
+
 
     // Comando para sair do jogo
     if (strcmp(comando, "s") == 0) {
@@ -530,6 +622,29 @@ int processarComandos(Jogo **jogo, char *comando) {
         return verificarRestricoes(*jogo);
     }
 
+    // Verifica o comando "a" (ajudar)
+    if (strcmp(comando, "a") == 0) {
+        if (!(*jogo)) {
+            printf("Jogo não carregado. Use 'l <arquivo>' para carregar um jogo.\n");
+            return -1;
+        }
+        ajudar(*jogo);
+        return 0;
+    }
+    
+
+    if (strcmp(comando, "A") == 0) {
+        (*jogo)->modoAjudaAtiva = !((*jogo)->modoAjudaAtiva);
+        if ((*jogo)->modoAjudaAtiva) {
+            printf("Modo de ajuda automática ATIVADO.\n");
+        } else {
+            printf("Modo de ajuda automática DESATIVADO.\n");
+        }
+        return 0;
+    }
+    
+    
+
     // Verifica se o comando tem espaço entre a letra e o número
     char tipoComando;
     char posicao[3] = {0}; // Inicializa com zeros
@@ -542,6 +657,7 @@ int processarComandos(Jogo **jogo, char *comando) {
         printf("  r <posicao>   - Riscar\n");
         printf("  d             - Desfazer último movimento\n");
         printf("  v             - Verificar restrições\n");
+        printf("  a             - Ajudar (inferir próximos movimentos)\n");
         printf("  s             - Sair do jogo\n");
         return -1;
     }
@@ -566,13 +682,19 @@ int processarComandos(Jogo **jogo, char *comando) {
     
     // Comando para pintar de branco
     if (tipoComando == 'b') {
-        return pintarBranco(*jogo, posicao);
+        int r = pintarBranco(*jogo, posicao);
+        if ((*jogo)->modoAjudaAtiva) ajudar(*jogo);
+
+        return r;
     }
-    
     // Comando para riscar
     if (tipoComando == 'r') {
-        return riscar(*jogo, posicao);
+        int r = riscar(*jogo, posicao);
+        if ((*jogo)->modoAjudaAtiva) ajudar(*jogo);
+
+        return r;
     }
+    
     
 
     // Se não corresponde a nenhum comando válido
@@ -584,6 +706,7 @@ int processarComandos(Jogo **jogo, char *comando) {
     printf("  r <posicao>   - Riscar\n");
     printf("  d             - Desfazer último movimento\n");
     printf("  v             - Verificar restrições\n");
+    printf("  a             - Ajudar (inferir próximos movimentos)\n");
     printf("  s             - Sair do jogo\n");
     
     return -1;
