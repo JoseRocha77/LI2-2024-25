@@ -4,12 +4,15 @@ INCLUDE = -I./include
 LDFLAGS = -lm --coverage
 CUNIT_LDFLAGS = -lcunit
 
-SOURCES = src/main.c src/jogo.c
-OBJECTS = src/main.o src/jogo.o
+SRC_DIR = src
+OBJ_DIR = obj
+
+SOURCES = $(SRC_DIR)/main.c $(SRC_DIR)/jogo.c
+OBJECTS = $(OBJ_DIR)/main.o $(OBJ_DIR)/jogo.o
 EXECUTABLE = jogo
 
-TEST_SOURCES = src/testar.c src/jogo.c
-TEST_OBJECTS = src/testar.o src/jogo.o
+TEST_SOURCES = $(SRC_DIR)/testar.c $(SRC_DIR)/jogo.c
+TEST_OBJECTS = $(OBJ_DIR)/testar.o $(OBJ_DIR)/jogo.o
 TEST_EXECUTABLE = testar
 
 .PHONY: all jogo clean test coverage
@@ -19,16 +22,19 @@ all: jogo
 jogo: $(OBJECTS)
 	$(CC) $(OBJECTS) -o $(EXECUTABLE) $(CFLAGS) $(LDFLAGS)
 
-%.o: %.c
+$(OBJ_DIR)/%.o: $(SRC_DIR)/%.c | $(OBJ_DIR)
 	$(CC) -c $< -o $@ $(CFLAGS) $(INCLUDE)
 
-clean:
-	rm -f $(OBJECTS) $(EXECUTABLE) $(TEST_EXECUTABLE) *.gcda *.gcno *.gcov src/*.o src/*.gcda src/*.gcno src/*.gcov
+$(OBJ_DIR):
+	mkdir -p $(OBJ_DIR)
 
-# --- Testes unitários com gcov ---
+clean:
+	rm -f $(EXECUTABLE) $(TEST_EXECUTABLE) *.gcda *.gcno *.gcov
+	rm -rf $(OBJ_DIR)
+
 testar: $(TEST_OBJECTS)
 	$(CC) $(TEST_OBJECTS) -o $(TEST_EXECUTABLE) $(CFLAGS) $(LDFLAGS) $(CUNIT_LDFLAGS)
 	./$(TEST_EXECUTABLE)
 
 coverage: clean testar
-	gcov src/jogo.c src/testar.c
+	gcov $(SRC_DIR)/jogo.c $(SRC_DIR)/testar.c

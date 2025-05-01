@@ -137,8 +137,6 @@ void carregarHistoricoMovimentos(FILE *input, Jogo *jogo) {
         }
         free(movimentosTemp);
     }
-
-    fclose(input);
 }
 
 
