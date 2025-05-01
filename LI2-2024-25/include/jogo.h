@@ -17,6 +17,8 @@ typedef struct{
 
 Jogo* carregarJogo (char *arquivo);
 
+void carregarHistoricoMovimentos(FILE *input, Jogo *jogo);
+
 void desenhaJogo (Jogo *jogo);
 
 int pintarBranco (Jogo *jogo, char *coordenada);
