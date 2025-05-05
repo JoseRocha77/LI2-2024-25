@@ -16,6 +16,7 @@ typedef struct{
     int modoAjudaAtiva;
 } Jogo;
 
+
 // Funções etapa 1
 Jogo* carregarJogo (char *arquivo);
 
@@ -50,6 +51,10 @@ int verificarConectividadeBrancas(Jogo *jogo);
 // Funções etapa 4
 
 int ajudar(Jogo *jogo);
+
+int backtrackingResolver(Jogo *jogo);
+
+int resolverJogo(Jogo *jogo);
 
 // Função principal
 int processarComandos(Jogo **jogo, char *comando);

@@ -312,6 +312,34 @@ int verificarRestricoes(Jogo *jogo) {
     
     int violacoes = 0;
     
+    // Verificação de símbolos únicos em linhas/colunas (NOVO)
+    for (int i = 0; i < jogo->linhas; i++) {
+        int contagem[26] = {0};
+        for (int j = 0; j < jogo->colunas; j++) {
+            char c = toupper(jogo->tabuleiro[i][j]);
+            if (c >= 'A' && c <= 'Z') {
+                if (contagem[c - 'A']++ > 0) {
+                    printf("Violação: Múltiplos %c na linha %d\n", c, i+1);
+                    violacoes++;
+                }
+            }
+        }
+    }
+    
+    for (int j = 0; j < jogo->colunas; j++) {
+        int contagem[26] = {0};
+        for (int i = 0; i < jogo->linhas; i++) {
+            char c = toupper(jogo->tabuleiro[i][j]);
+            if (c >= 'A' && c <= 'Z') {
+                if (contagem[c - 'A']++ > 0) {
+                    printf("Violação: Múltiplos %c na coluna %c\n", c, 'a'+j);
+                    violacoes++;
+                }
+            }
+        }
+    }
+
+
     // Verifica a restrição: casas riscadas não podem ser adjacentes
     for (int i = 0; i < jogo->linhas; i++) {
         for (int j = 0; j < jogo->colunas; j++) {
@@ -381,7 +409,7 @@ int verificarRestricoes(Jogo *jogo) {
     }
     
 
-    return 0;
+    return violacoes ? -1 : 0;
 }
 
 
@@ -554,6 +582,481 @@ int ajudar(Jogo *jogo) {
 
 
 
+Jogo* copiarJogo(Jogo* original) {
+    if (!original) return NULL;
+    
+    Jogo* copia = malloc(sizeof(Jogo));
+    if (!copia) return NULL;
+    
+    copia->linhas = original->linhas;
+    copia->colunas = original->colunas;
+    copia->modoAjudaAtiva = original->modoAjudaAtiva;
+    copia->historicoMovimentos = NULL;
+    
+    copia->tabuleiro = malloc(copia->linhas * sizeof(char*));
+    if (!copia->tabuleiro) {
+        free(copia);
+        return NULL;
+    }
+    
+    for (int i = 0; i < copia->linhas; i++) {
+        copia->tabuleiro[i] = malloc((copia->colunas + 1) * sizeof(char));
+        if (!copia->tabuleiro[i]) {
+            for (int j = 0; j < i; j++) free(copia->tabuleiro[j]);
+            free(copia->tabuleiro);
+            free(copia);
+            return NULL;
+        }
+        strcpy(copia->tabuleiro[i], original->tabuleiro[i]);
+    }
+    
+    // Copiar histórico de movimentos
+    Movimento *orig = original->historicoMovimentos;
+    Movimento **dest = &(copia->historicoMovimentos);
+    
+    while (orig) {
+        *dest = malloc(sizeof(Movimento));
+        if (!*dest) {
+            freeHistoricoMovimentos(copia->historicoMovimentos);
+            for (int i = 0; i < copia->linhas; i++) free(copia->tabuleiro[i]);
+            free(copia->tabuleiro);
+            free(copia);
+            return NULL;
+        }
+        (*dest)->linha = orig->linha;
+        (*dest)->coluna = orig->coluna;
+        (*dest)->estadoAnterior = orig->estadoAnterior;
+        (*dest)->proximo = NULL;
+        
+        dest = &((*dest)->proximo);
+        orig = orig->proximo;
+    }
+    
+    return copia;
+}
+
+
+void restaurarJogo(Jogo* destino, Jogo* origem) {
+    if (!destino || !origem) return;
+    
+    // Copiar tabuleiro
+    for (int i = 0; i < destino->linhas; i++) {
+        strcpy(destino->tabuleiro[i], origem->tabuleiro[i]);
+    }
+    
+    // Copiar histórico
+    freeHistoricoMovimentos(destino->historicoMovimentos);
+    destino->historicoMovimentos = NULL;
+    
+    Movimento *orig = origem->historicoMovimentos;
+    Movimento **dest = &(destino->historicoMovimentos);
+    
+    while (orig) {
+        *dest = malloc(sizeof(Movimento));
+        if (!*dest) break;
+        
+        (*dest)->linha = orig->linha;
+        (*dest)->coluna = orig->coluna;
+        (*dest)->estadoAnterior = orig->estadoAnterior;
+        (*dest)->proximo = NULL;
+        
+        dest = &((*dest)->proximo);
+        orig = orig->proximo;
+    }
+}
+
+// Função auxiliar para backtracking melhorada
+// Não imprime a solução, apenas resolve e retorna o status
+int backtrackingResolver(Jogo *jogo) {
+    // Aplicar todas as regras determinísticas primeiro
+    int alteracoes;
+    int maxIteracoes = 50;
+    int iteracoes = 0;
+    
+    do {
+        alteracoes = 0;
+        
+        // Aplicar Regra 1: Eliminar duplicados em linhas/colunas
+        for (int i = 0; i < jogo->linhas; i++) {
+            for (int j = 0; j < jogo->colunas; j++) {
+                if (isupper(jogo->tabuleiro[i][j])) {
+                    char atual = tolower(jogo->tabuleiro[i][j]);
+                    
+                    // Verificar linha e riscar duplicatas
+                    for (int k = 0; k < jogo->colunas; k++) {
+                        if (k != j && tolower(jogo->tabuleiro[i][k]) == atual) {
+                            char coord[3] = {'a'+k, '1'+i, '\0'};
+                            if (islower(jogo->tabuleiro[i][k]) && riscar(jogo, coord) == 0) {
+                                alteracoes++;
+                            }
+                        }
+                    }
+                    
+                    // Verificar coluna e riscar duplicatas
+                    for (int k = 0; k < jogo->linhas; k++) {
+                        if (k != i && tolower(jogo->tabuleiro[k][j]) == atual) {
+                            char coord[3] = {'a'+j, '1'+k, '\0'};
+                            if (islower(jogo->tabuleiro[k][j]) && riscar(jogo, coord) == 0) {
+                                alteracoes++;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Regra 2: Vizinhos de casas riscadas devem ser brancos
+        for (int i = 0; i < jogo->linhas; i++) {
+            for (int j = 0; j < jogo->colunas; j++) {
+                if (jogo->tabuleiro[i][j] == '#') {
+                    int di[] = {-1, 1, 0, 0};
+                    int dj[] = {0, 0, -1, 1};
+                    
+                    for (int d = 0; d < 4; d++) {
+                        int ni = i + di[d];
+                        int nj = j + dj[d];
+                        
+                        if (ni >= 0 && ni < jogo->linhas && nj >= 0 && nj < jogo->colunas) {
+                            if (islower(jogo->tabuleiro[ni][nj])) {
+                                char coord[3] = {'a'+nj, '1'+ni, '\0'};
+                                if (pintarBranco(jogo, coord) == 0) {
+                                    alteracoes++;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Regra 3: Se uma letra só aparece uma vez na linha ou coluna, deve ser branca
+        // Linhas
+        for (int i = 0; i < jogo->linhas; i++) {
+            for (char letra = 'a'; letra <= 'z'; letra++) {
+                int count = 0;
+                int pos = -1;
+                
+                for (int j = 0; j < jogo->colunas; j++) {
+                    if (tolower(jogo->tabuleiro[i][j]) == letra) {
+                        count++;
+                        pos = j;
+                    }
+                }
+                
+                if (count == 1 && pos != -1 && islower(jogo->tabuleiro[i][pos])) {
+                    char coord[3] = {'a'+pos, '1'+i, '\0'};
+                    if (pintarBranco(jogo, coord) == 0) {
+                        alteracoes++;
+                    }
+                }
+            }
+        }
+        
+        // Colunas
+        for (int j = 0; j < jogo->colunas; j++) {
+            for (char letra = 'a'; letra <= 'z'; letra++) {
+                int count = 0;
+                int pos = -1;
+                
+                for (int i = 0; i < jogo->linhas; i++) {
+                    if (tolower(jogo->tabuleiro[i][j]) == letra) {
+                        count++;
+                        pos = i;
+                    }
+                }
+                
+                if (count == 1 && pos != -1 && islower(jogo->tabuleiro[pos][j])) {
+                    char coord[3] = {'a'+j, '1'+pos, '\0'};
+                    if (pintarBranco(jogo, coord) == 0) {
+                        alteracoes++;
+                    }
+                }
+            }
+        }
+        
+        iteracoes++;
+    } while (alteracoes > 0 && iteracoes < maxIteracoes);
+    
+    // Verificar se o jogo atual tem violações evidentes
+    // 1. Verificar casas riscadas adjacentes
+    for (int i = 0; i < jogo->linhas; i++) {
+        for (int j = 0; j < jogo->colunas; j++) {
+            if (jogo->tabuleiro[i][j] == '#') {
+                // Verifica vizinho à direita
+                if (j < jogo->colunas - 1 && jogo->tabuleiro[i][j+1] == '#') {
+                    return -1; // Violação: casas riscadas adjacentes
+                }
+                // Verifica vizinho abaixo
+                if (i < jogo->linhas - 1 && jogo->tabuleiro[i+1][j] == '#') {
+                    return -1; // Violação: casas riscadas adjacentes
+                }
+            }
+        }
+    }
+    
+    // Verifica se todas as células estão resolvidas
+    int completo = 1;
+    int linha_nao_resolvida = -1;
+    int coluna_nao_resolvida = -1;
+    
+    for (int i = 0; i < jogo->linhas && completo; i++) {
+        for (int j = 0; j < jogo->colunas && completo; j++) {
+            if (islower(jogo->tabuleiro[i][j])) {
+                completo = 0;
+                linha_nao_resolvida = i;
+                coluna_nao_resolvida = j;
+            }
+        }
+    }
+    
+    // Se todas as células estão resolvidas, verifica se a solução é válida
+    if (completo) {
+        // Verificar conectividade das casas brancas
+        if (verificarConectividadeBrancas(jogo) != 0) {
+            return -1; // Violação: casas brancas não conectadas
+        }
+        
+        // Verificar outras restrições
+        return verificarRestricoes(jogo) == 0 ? 0 : -1;
+    }
+    
+    // Criar uma cópia do jogo para tentar pintar de branco
+    Jogo *jogoCopia = copiarJogo(jogo);
+    if (!jogoCopia) {
+        return -1; // Falha ao criar cópia
+    }
+    
+    char coord[3] = {'a' + coluna_nao_resolvida, '1' + linha_nao_resolvida, '\0'};
+    
+    // Tenta pintar de branco primeiro
+    if (pintarBranco(jogoCopia, coord) == 0) {
+        // Aplicar regras determinísticas na cópia pintada de branco
+        int result = backtrackingResolver(jogoCopia);
+        if (result == 0) {
+            // Copiar a solução encontrada de volta para o jogo original
+            for (int i = 0; i < jogo->linhas; i++) {
+                for (int j = 0; j < jogo->colunas; j++) {
+                    jogo->tabuleiro[i][j] = jogoCopia->tabuleiro[i][j];
+                }
+            }
+            freeJogo(jogoCopia);
+            return 0;
+        }
+    }
+    
+    // Liberar a cópia e criar uma nova para tentar riscar
+    freeJogo(jogoCopia);
+    jogoCopia = copiarJogo(jogo);
+    if (!jogoCopia) {
+        return -1; // Falha ao criar cópia
+    }
+
+    // Tenta riscar a célula
+    if (riscar(jogoCopia, coord) == 0) {
+        // Aplicar regras determinísticas na cópia riscada
+        int result = backtrackingResolver(jogoCopia);
+        if (result == 0) {
+            // Copiar a solução encontrada de volta para o jogo original
+            for (int i = 0; i < jogo->linhas; i++) {
+                for (int j = 0; j < jogo->colunas; j++) {
+                    jogo->tabuleiro[i][j] = jogoCopia->tabuleiro[i][j];
+                }
+            }
+            freeJogo(jogoCopia);
+            return 0;
+        }
+    }
+
+    freeJogo(jogoCopia);
+    return -1;
+}
+
+
+int resolverJogo(Jogo *jogo) {
+    if (!jogo) return -1;
+
+    printf("\nIniciando resolução automática...\n");
+    desenhaJogo(jogo);
+
+    // Variável para controlar a impressão da solução - NÃO É MAIS ESTÁTICA
+    // O problema principal estava aqui: a variável estática estava sendo inicializada
+    // a cada chamada da função, perdendo seu estado
+    int solucaoMostrada = 0;
+
+    Jogo *jogoOriginal = copiarJogo(jogo);
+    if (!jogoOriginal) {
+        printf("Erro ao criar cópia do jogo original.\n");
+        return -1;
+    }
+
+    int alteracoes, totalAlteracoes = 0, resolvido = 0;
+    int iteracoes = 0, maxIteracoes = 100;
+
+    do {
+        alteracoes = 0;
+
+        // Regra 1: Eliminar duplicatas
+        for (int i = 0; i < jogo->linhas; i++) {
+            for (int j = 0; j < jogo->colunas; j++) {
+                if (isupper(jogo->tabuleiro[i][j])) {
+                    char atual = tolower(jogo->tabuleiro[i][j]);
+
+                    for (int k = 0; k < jogo->colunas; k++) {
+                        if (k != j && tolower(jogo->tabuleiro[i][k]) == atual) {
+                            char coord[3] = { 'a' + k, '1' + i, '\0' };
+                            if (islower(jogo->tabuleiro[i][k]) && riscar(jogo, coord) == 0) {
+                                alteracoes++;
+                            }
+                        }
+                    }
+
+                    for (int k = 0; k < jogo->linhas; k++) {
+                        if (k != i && tolower(jogo->tabuleiro[k][j]) == atual) {
+                            char coord[3] = { 'a' + j, '1' + k, '\0' };
+                            if (islower(jogo->tabuleiro[k][j]) && riscar(jogo, coord) == 0) {
+                                alteracoes++;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Regra 2: Vizinhos de riscados devem ser brancos
+        for (int i = 0; i < jogo->linhas; i++) {
+            for (int j = 0; j < jogo->colunas; j++) {
+                if (jogo->tabuleiro[i][j] == '#') {
+                    int di[] = { -1, 1, 0, 0 };
+                    int dj[] = { 0, 0, -1, 1 };
+
+                    for (int d = 0; d < 4; d++) {
+                        int ni = i + di[d];
+                        int nj = j + dj[d];
+
+                        if (ni >= 0 && ni < jogo->linhas && nj >= 0 && nj < jogo->colunas) {
+                            if (islower(jogo->tabuleiro[ni][nj])) {
+                                char coord[3] = { 'a' + nj, '1' + ni, '\0' };
+                                if (pintarBranco(jogo, coord) == 0) {
+                                    alteracoes++;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Regra 3: Letras únicas na linha devem ser brancas
+        for (int i = 0; i < jogo->linhas; i++) {
+            for (char letra = 'a'; letra <= 'z'; letra++) {
+                int count = 0, pos = -1;
+                for (int j = 0; j < jogo->colunas; j++) {
+                    if (tolower(jogo->tabuleiro[i][j]) == letra) {
+                        count++;
+                        pos = j;
+                    }
+                }
+                if (count == 1 && pos != -1 && islower(jogo->tabuleiro[i][pos])) {
+                    char coord[3] = { 'a' + pos, '1' + i, '\0' };
+                    if (pintarBranco(jogo, coord) == 0) {
+                        alteracoes++;
+                    }
+                }
+            }
+        }
+
+        // Regra 3: Letras únicas na coluna devem ser brancas
+        for (int j = 0; j < jogo->colunas; j++) {
+            for (char letra = 'a'; letra <= 'z'; letra++) {
+                int count = 0, pos = -1;
+                for (int i = 0; i < jogo->linhas; i++) {
+                    if (tolower(jogo->tabuleiro[i][j]) == letra) {
+                        count++;
+                        pos = i;
+                    }
+                }
+                if (count == 1 && pos != -1 && islower(jogo->tabuleiro[pos][j])) {
+                    char coord[3] = { 'a' + j, '1' + pos, '\0' };
+                    if (pintarBranco(jogo, coord) == 0) {
+                        alteracoes++;
+                    }
+                }
+            }
+        }
+
+        // Regra 4: Prevenir desconexão de áreas brancas
+        for (int i = 0; i < jogo->linhas; i++) {
+            for (int j = 0; j < jogo->colunas; j++) {
+                if (islower(jogo->tabuleiro[i][j])) {
+                    char original = jogo->tabuleiro[i][j];
+                    jogo->tabuleiro[i][j] = '#';
+                    int resultado = verificarConectividadeBrancas(jogo);
+                    jogo->tabuleiro[i][j] = original;
+
+                    if (resultado != 0) {
+                        char coord[3] = { 'a' + j, '1' + i, '\0' };
+                        if (pintarBranco(jogo, coord) == 0) {
+                            alteracoes++;
+                        }
+                    }
+                }
+            }
+        }
+
+        // Verifica se está resolvido (sem letras minúsculas)
+        resolvido = 1;
+        for (int i = 0; i < jogo->linhas && resolvido; i++) {
+            for (int j = 0; j < jogo->colunas && resolvido; j++) {
+                if (islower(jogo->tabuleiro[i][j])) {
+                    resolvido = 0;
+                }
+            }
+        }
+
+        // Se o jogo está resolvido e é válido, imprime a solução (apenas uma vez)
+        if (resolvido && verificarRestricoes(jogo) == 0) {
+            if (!solucaoMostrada) { // Controla para mostrar apenas uma vez
+                printf("\nSolução encontrada com %d alterações:\n", totalAlteracoes + alteracoes);
+                desenhaJogo(jogo);
+                solucaoMostrada = 1; // Marca que já mostrou a solução
+                freeJogo(jogoOriginal);
+                return 0;
+            }
+        } else if (resolvido) {
+            // Solução inválida
+            printf("Solução inválida encontrada. Tentando backtracking...\n");
+            resolvido = 0;
+        }
+
+        totalAlteracoes += alteracoes;
+        iteracoes++;
+
+    } while (!resolvido && alteracoes > 0 && iteracoes < maxIteracoes);
+
+    // Se não resolveu com regras determinísticas e ainda não mostrou solução
+    if (!solucaoMostrada) {
+        printf("Não foi possível resolver apenas com regras determinísticas. Iniciando backtracking...\n");
+        
+        restaurarJogo(jogo, jogoOriginal);
+        freeJogo(jogoOriginal);
+        
+        if (backtrackingResolver(jogo) == 0) {
+            printf("\nSolução encontrada com backtracking:\n");
+            desenhaJogo(jogo);
+            // Não precisamos marcar solucaoMostrada = 1 aqui porque estamos no final da função
+            return 0;
+        }
+        
+        printf("Não foi possível encontrar uma solução.\n");
+        return -1;
+    }
+    
+    // Se já mostrou a solução mas chegou aqui, apenas libere a memória e retorne
+    freeJogo(jogoOriginal);
+    return 0;
+}
+
+
 
 
 // Função principal ===========================================================================================
@@ -642,6 +1145,15 @@ int processarComandos(Jogo **jogo, char *comando) {
         }
         return 0;
     }
+
+    // Comando para resolver automaticamente o jogo
+    if (strcmp(comando, "R") == 0) {
+        if (!(*jogo)) {
+            printf("Jogo não carregado. Use 'l <arquivo>' para carregar um jogo.\n");
+            return -1;
+        }
+        return resolverJogo(*jogo);
+    }
     
     
 
@@ -653,12 +1165,14 @@ int processarComandos(Jogo **jogo, char *comando) {
         printf("Comandos válidos:\n");
         printf("  l <arquivo.txt>   - Carregar jogo\n");
         printf("  g <arquivo.txt>   - Gravar jogo\n");
-        printf("  b <posicao>   - Pintar de branco\n");
-        printf("  r <posicao>   - Riscar\n");
-        printf("  d             - Desfazer último movimento\n");
-        printf("  v             - Verificar restrições\n");
-        printf("  a             - Ajudar (inferir próximos movimentos)\n");
-        printf("  s             - Sair do jogo\n");
+        printf("  b <posicao>       - Pintar de branco\n");
+        printf("  r <posicao>       - Riscar\n");
+        printf("  d                 - Desfazer último movimento\n");
+        printf("  v                 - Verificar restrições\n");
+        printf("  a                 - Ajudar (inferir próximos movimentos)\n");
+        printf("  A                 - Ativar modo de ajuda automático\n");
+        printf("  R                 - Resolver jogo automaticamente\n");
+        printf("  s                 - Sair do jogo\n");
         return -1;
     }
 
@@ -702,12 +1216,14 @@ int processarComandos(Jogo **jogo, char *comando) {
     printf("Comandos válidos:\n");
     printf("  l <arquivo.txt>   - Carregar jogo\n");
     printf("  g <arquivo.txt>   - Gravar jogo\n");
-    printf("  b <posicao>   - Pintar de branco\n");
-    printf("  r <posicao>   - Riscar\n");
-    printf("  d             - Desfazer último movimento\n");
-    printf("  v             - Verificar restrições\n");
-    printf("  a             - Ajudar (inferir próximos movimentos)\n");
-    printf("  s             - Sair do jogo\n");
+    printf("  b <posicao>       - Pintar de branco\n");
+    printf("  r <posicao>       - Riscar\n");
+    printf("  d                 - Desfazer último movimento\n");
+    printf("  v                 - Verificar restrições\n");
+    printf("  a                 - Ajudar (inferir próximos movimentos)\n");
+    printf("  A                 - Ativar modo de ajuda automático\n");
+    printf("  R                 - Resolver jogo automaticamente\n");
+    printf("  s                 - Sair do jogo\n");
     
     return -1;
 }

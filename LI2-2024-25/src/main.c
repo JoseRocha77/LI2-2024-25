@@ -12,11 +12,14 @@ int main(void) {
     printf("Comandos disponíveis:\n");
     printf("  l <arquivo.txt>   - Carregar jogo\n");
     printf("  g <arquivo.txt>   - Gravar jogo\n");
-    printf("  b <posicao>   - Pintar de branco\n");
-    printf("  r <posicao>   - Riscar\n");
-    printf("  d             - Desfazer último movimento\n");
-    printf("  v             - Verificar restrições\n");
-    printf("  s             - Sair do jogo\n\n");
+    printf("  b <posicao>       - Pintar de branco\n");
+    printf("  r <posicao>       - Riscar\n");
+    printf("  d                 - Desfazer último movimento\n");
+    printf("  v                 - Verificar restrições\n");
+    printf("  a                 - Ajudar (inferir próximos movimentos)\n");
+    printf("  A                 - Ativar modo de ajuda automático\n");
+    printf("  R                 - Resolver jogo automaticamente\n");
+    printf("  s                 - Sair do jogo\n");
 
 
     char comando[100];  
