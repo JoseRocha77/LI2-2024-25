@@ -873,18 +873,10 @@ int backtrackingResolver(Jogo *jogo) {
     return -1;
 }
 
-
 int resolverJogo(Jogo *jogo) {
     if (!jogo) return -1;
 
-    printf("\nIniciando resolução automática...\n");
-    desenhaJogo(jogo);
-
-    // Variável para controlar a impressão da solução - NÃO É MAIS ESTÁTICA
-    // O problema principal estava aqui: a variável estática estava sendo inicializada
-    // a cada chamada da função, perdendo seu estado
-    int solucaoMostrada = 0;
-
+    // Cria uma cópia do jogo original
     Jogo *jogoOriginal = copiarJogo(jogo);
     if (!jogoOriginal) {
         printf("Erro ao criar cópia do jogo original.\n");
@@ -1015,18 +1007,13 @@ int resolverJogo(Jogo *jogo) {
             }
         }
 
-        // Se o jogo está resolvido e é válido, imprime a solução (apenas uma vez)
+        // Se o jogo está resolvido e é válido
         if (resolvido && verificarRestricoes(jogo) == 0) {
-            if (!solucaoMostrada) { // Controla para mostrar apenas uma vez
-                printf("\nSolução encontrada com %d alterações:\n", totalAlteracoes + alteracoes);
-                desenhaJogo(jogo);
-                solucaoMostrada = 1; // Marca que já mostrou a solução
-                freeJogo(jogoOriginal);
-                return 0;
-            }
+            printf("\nSolução encontrada com %d alterações:\n", totalAlteracoes + alteracoes);
+            freeJogo(jogoOriginal);
+            return 0;
         } else if (resolvido) {
             // Solução inválida
-            printf("Solução inválida encontrada. Tentando backtracking...\n");
             resolvido = 0;
         }
 
@@ -1035,27 +1022,19 @@ int resolverJogo(Jogo *jogo) {
 
     } while (!resolvido && alteracoes > 0 && iteracoes < maxIteracoes);
 
-    // Se não resolveu com regras determinísticas e ainda não mostrou solução
-    if (!solucaoMostrada) {
-        printf("Não foi possível resolver apenas com regras determinísticas. Iniciando backtracking...\n");
+    // Se não resolveu com regras determinísticas
+    printf("Não foi possível resolver apenas com regras determinísticas. Iniciando backtracking...\n");
+    printf("Usando backtracking para tentar resolver...\n");
         
-        restaurarJogo(jogo, jogoOriginal);
-        freeJogo(jogoOriginal);
-        
-        if (backtrackingResolver(jogo) == 0) {
-            printf("\nSolução encontrada com backtracking:\n");
-            desenhaJogo(jogo);
-            // Não precisamos marcar solucaoMostrada = 1 aqui porque estamos no final da função
-            return 0;
-        }
-        
-        printf("Não foi possível encontrar uma solução.\n");
-        return -1;
-    }
-    
-    // Se já mostrou a solução mas chegou aqui, apenas libere a memória e retorne
+    restaurarJogo(jogo, jogoOriginal);
     freeJogo(jogoOriginal);
-    return 0;
+        
+    if (backtrackingResolver(jogo) == 0) {
+        return 0;
+    }
+        
+    printf("Não foi possível encontrar uma solução.\n");
+    return -1;
 }
 
 
