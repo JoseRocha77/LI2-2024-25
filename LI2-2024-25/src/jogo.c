@@ -399,6 +399,8 @@ int verificarRestricoes(Jogo *jogo) {
     if (conectividade != 0) {
         printf("Violação: As casas brancas não estão todas conectadas ortogonalmente.\n");
         violacoes++;
+    } else {
+        printf("Todas as casas brancas estão conectadas.\n");
     }
 
     if (violacoes == 0) {
@@ -477,7 +479,7 @@ int verificarConectividadeBrancas(Jogo *jogo) {
     }
 
     if (totalBrancas == 0) {
-        printf("Não há casas brancas no tabuleiro.\n");
+        //printf("Não há casas brancas no tabuleiro.\n");
         for (int i = 0; i < jogo->linhas; i++) free(visitado[i]);
         free(visitado);
         return 0;
@@ -490,7 +492,7 @@ int verificarConectividadeBrancas(Jogo *jogo) {
     free(visitado);
 
     if (visitadas == totalBrancas) {
-        printf("Todas as casas brancas estão conectadas.\n");
+        //printf("Todas as casas brancas estão conectadas.\n");
         return 0;
     }
 
@@ -576,7 +578,7 @@ int ajudar(Jogo *jogo) {
         }
     }
 
-    printf("Nenhuma jogada inferida disponível.\n");
+    printf("Nenhuma jogada inferida disponível,faça uma jogada antes de usar o comando de ajuda.\n");
     return 0;
 }
 
