@@ -5,7 +5,7 @@
 #include "../include/jogo.h"
 
 // Função para exibir o menu inicial
-void exibirMenuInicial() {
+void exibirMenuInicial(void) {
     printf("\n====================Bem-vindo ao jogo Puzzle Hitori!====================\n");
     printf("\nUse 'l <nome_arquivo>' para carregar um jogo.\n");
     printf("Comandos disponíveis:\n");
@@ -22,17 +22,17 @@ void exibirMenuInicial() {
 }
 
 // Função para exibir a mensagem de vitória e aguardar ENTER
-void exibirMensagemVitoria() {
+void exibirMensagemVitoria(void) {
     printf("\n\n");
     printf("╔═════════════════════════════════════════════════════════════╗\n");
     printf("║                                                             ║\n");
-    printf("║                 PARABÉNS! VOCÊ VENCEU!                      ║\n");
     printf("║                                                             ║\n");
-    printf("║          Você completou o puzzle com sucesso!               ║\n");
+    printf("║                 PARABÉNS! VENCESTE O JOGO!                  ║\n");
+    printf("║                                                             ║\n");
     printf("║                                                             ║\n");
     printf("╚═════════════════════════════════════════════════════════════╝\n\n");
     
-    printf("Pressione ENTER para voltar ao menu principal...");
+    printf("Pressiona ENTER para voltar ao menu principal...");
 
     int c;
     while ((c = getchar()) != '\n');
@@ -47,7 +47,7 @@ int main(void) {
 
     char comando[100];  
     while (1) {
-        printf("Digite um comando: ");
+        printf("Digita um comando: ");
         if (!fgets(comando, sizeof(comando), stdin)) {
             printf("Erro ao ler comando.\n");
             continue;

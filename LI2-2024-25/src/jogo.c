@@ -23,6 +23,8 @@ Jogo* carregarJogo(char *arquivo) {
     // Inicializa o histórico de movimentos
     jogo->historicoMovimentos = NULL;
     jogo->modoAjudaAtiva = 0; // Desativado por padrão
+    jogo->agrupandoMovimentos = 0;
+    jogo->grupoMovimentos = NULL;
 
 
     // Lê as dimensões do tabuleiro
@@ -217,7 +219,7 @@ int pintarBranco(Jogo *jogo, char *coordenada){
     registarMovimento(jogo, linha, coluna, jogo->tabuleiro[linha][coluna]);
     
     if (jogo->tabuleiro[linha][coluna] >= 'a' && jogo->tabuleiro[linha][coluna] <= 'z') {
-        jogo->tabuleiro[linha][coluna] = jogo->tabuleiro[linha][coluna] - 32; //converter para maiscula
+        jogo->tabuleiro[linha][coluna] = jogo->tabuleiro[linha][coluna] - 32; //converter para maiuscula
     }
     
     return 0;
@@ -229,7 +231,7 @@ int riscar(Jogo *jogo, char *coordenada) {
     int coluna = coordenada[0] - 'a';
     int linha = coordenada[1] - '1';
     
-    // Validação importante para evitar buffer overflow
+    // Validação das coordenadas
     if (coluna < 0 || coluna >= jogo->colunas || linha < 0 || linha >= jogo->linhas) {
         printf("Coordenadas inválidas: %s\n", coordenada);
         return -1;
@@ -251,7 +253,7 @@ void freeJogo(Jogo *jogo) {
             free(jogo->tabuleiro);
         }
         
-        // Libera a memória do histórico de movimentos
+        // Liberta a memória do histórico de movimentos
         freeHistoricoMovimentos(jogo->historicoMovimentos);
         
         free(jogo);
@@ -263,6 +265,8 @@ void freeJogo(Jogo *jogo) {
 // Funções etapa 2 ===================================================================================
 
 void registarMovimento(Jogo *jogo, int linha, int coluna, char estadoAnterior) {
+    if (!jogo) return;
+    
     Movimento *novoMovimento = malloc(sizeof(Movimento));
     if (!novoMovimento) {
         printf("Erro na alocação de memória para o histórico.\n");
@@ -272,9 +276,18 @@ void registarMovimento(Jogo *jogo, int linha, int coluna, char estadoAnterior) {
     novoMovimento->linha = linha;
     novoMovimento->coluna = coluna;
     novoMovimento->estadoAnterior = estadoAnterior;
-    novoMovimento->proximo = jogo->historicoMovimentos;
+    novoMovimento->proximo = NULL;
+    novoMovimento->grupoInterno = NULL; // Inicializa o campo de grupo interno
     
-    jogo->historicoMovimentos = novoMovimento;
+    if (jogo->agrupandoMovimentos) {
+        // Adiciona ao grupo de movimentos temporário
+        novoMovimento->proximo = jogo->grupoMovimentos;
+        jogo->grupoMovimentos = novoMovimento;
+    } else {
+        // Adiciona diretamente ao histórico
+        novoMovimento->proximo = jogo->historicoMovimentos;
+        jogo->historicoMovimentos = novoMovimento;
+    }
 }
 
 
@@ -285,24 +298,47 @@ int desfazerMovimento(Jogo *jogo) {
     }
 
     Movimento *ultimoMovimento = jogo->historicoMovimentos;
-
-    // Valor que será substituído (o valor atual do tabuleiro antes de desfazer)
+    
+    // Verifica se é um movimento de grupo
+    if (ultimoMovimento->linha == -1 && ultimoMovimento->coluna == -1 && ultimoMovimento->estadoAnterior == 'G') { // <---------
+        printf("Desfazendo grupo de movimentos...\n");
+        
+        // Remove o movimento de grupo do histórico principal
+        jogo->historicoMovimentos = ultimoMovimento->proximo;
+        
+        // Desfaz todos os movimentos no grupo
+        Movimento *movimentoGrupo = ultimoMovimento->grupoInterno;
+        int contadorMovimentos = 0;
+        
+        while (movimentoGrupo != NULL) {
+            // Restaura o estado anterior
+            jogo->tabuleiro[movimentoGrupo->linha][movimentoGrupo->coluna] = movimentoGrupo->estadoAnterior;
+            
+            // Passa para o próximo movimento do grupo
+            Movimento *temp = movimentoGrupo;
+            movimentoGrupo = movimentoGrupo->proximo;
+            free(temp);
+            contadorMovimentos++;
+        }
+        
+        free(ultimoMovimento); // Liberta o movimento de grupo
+        printf("Grupo de %d movimentos desfeito com sucesso.\n", contadorMovimentos);
+        return 0;
+    }
+    
+    // Caso seja um movimento normal - código original mantido
     char valorAtual = jogo->tabuleiro[ultimoMovimento->linha][ultimoMovimento->coluna];
-
-    // Restaura o estado anterior
     jogo->tabuleiro[ultimoMovimento->linha][ultimoMovimento->coluna] = ultimoMovimento->estadoAnterior;
-
-    // Remove o movimento do histórico
-    jogo->historicoMovimentos = ultimoMovimento->proximo;
-
+    
     printf(
         "Movimento desfeito na posição (%c,%d): '%c' voltou para '%c'.\n",
         ultimoMovimento->coluna + 'a',
-        ultimoMovimento->linha + 1 ,
+        ultimoMovimento->linha + 1,
         valorAtual,
         ultimoMovimento->estadoAnterior
     );
 
+    jogo->historicoMovimentos = ultimoMovimento->proximo;
     free(ultimoMovimento);
     return 0;
 }
@@ -312,7 +348,7 @@ int verificarRestricoes(Jogo *jogo) {
     
     int violacoes = 0;
     
-    // Verificação de símbolos únicos em linhas/colunas (NOVO)
+    // Verificação de símbolos únicos em linhas/colunas
     for (int i = 0; i < jogo->linhas; i++) {
         int contagem[26] = {0};
         for (int j = 0; j < jogo->colunas; j++) {
@@ -418,6 +454,12 @@ int verificarRestricoes(Jogo *jogo) {
 void freeHistoricoMovimentos(Movimento *historico) {
     while (historico != NULL) {
         Movimento *temp = historico;
+        
+        // Se for um movimento de grupo, liberta os movimentos internos primeiro
+        if (temp->linha == -1 && temp->coluna == -1 && temp->estadoAnterior == 'G') {
+            freeHistoricoMovimentos(temp->grupoInterno);
+        }
+        
         historico = historico->proximo;
         free(temp);
     }
@@ -503,7 +545,52 @@ int verificarConectividadeBrancas(Jogo *jogo) {
 
 // Funções etapa 4 ==========================================================================================
 
+void iniciarAgrupamentoMovimentos(Jogo *jogo) {
+    if (!jogo) return;
+    jogo->agrupandoMovimentos = 1;
+    jogo->grupoMovimentos = NULL;
+}
+
+void finalizarAgrupamentoMovimentos(Jogo *jogo) {
+    if (!jogo || !jogo->agrupandoMovimentos) return;
+    
+    // Se não houver movimentos no grupo, apenas desativa o agrupamento
+    if (!jogo->grupoMovimentos) {
+        jogo->agrupandoMovimentos = 0;
+        return;
+    }
+    
+    // Criar um movimento especial para representar o grupo
+    Movimento *movimentoGrupo = malloc(sizeof(Movimento));
+    if (!movimentoGrupo) {
+        printf("Erro na alocação de memória para agrupamento.\n");
+        return;
+    }
+    
+    movimentoGrupo->linha = -1;  // Valor especial para indicar que é um grupo
+    movimentoGrupo->coluna = -1;
+    movimentoGrupo->estadoAnterior = 'G';  // 'G' de grupo
+    movimentoGrupo->proximo = jogo->historicoMovimentos;
+    
+    // Anexa o grupo de movimentos ao movimento especial
+    movimentoGrupo->grupoInterno = jogo->grupoMovimentos;
+    
+    // Adiciona o movimento especial ao histórico
+    jogo->historicoMovimentos = movimentoGrupo;
+    
+    // Reinicializa o estado de agrupamento
+    jogo->agrupandoMovimentos = 0;
+    jogo->grupoMovimentos = NULL;
+}
+
 int ajudar(Jogo *jogo) {
+    if (!jogo) return -1;
+    
+    // Inicia o agrupamento de movimentos
+    iniciarAgrupamentoMovimentos(jogo);
+    
+    int alteracoesFeitas = 0;
+    
     // 1. Regra: riscar letras iguais a uma branca na linha ou coluna
     for (int i = 0; i < jogo->linhas; i++) {
         for (int j = 0; j < jogo->colunas; j++) {
@@ -515,16 +602,17 @@ int ajudar(Jogo *jogo) {
                         char coord[3] = { 'a' + k, '1' + i, '\0' };
                         printf("Ajuda: riscar %s (igual a branca %c na linha)\n", coord, atual);
                         riscar(jogo, coord);
-                        return 1;
+                        alteracoesFeitas = 1;
                     }
                 }
+                
                 // Verifica coluna
                 for (int k = 0; k < jogo->linhas; k++) {
                     if (jogo->tabuleiro[k][j] == atual + 32) {
                         char coord[3] = { 'a' + j, '1' + k, '\0' };
                         printf("Ajuda: riscar %s (igual a branca %c na coluna)\n", coord, atual);
                         riscar(jogo, coord);
-                        return 1;
+                        alteracoesFeitas = 1;
                     }
                 }
             }
@@ -532,54 +620,68 @@ int ajudar(Jogo *jogo) {
     }
 
     // 2. Regra: pintar de branco todas as casas vizinhas de uma casa riscada
-    for (int i = 0; i < jogo->linhas; i++) {
-        for (int j = 0; j < jogo->colunas; j++) {
-            if (jogo->tabuleiro[i][j] == '#') {
-                int alterou = 0;
-                int di[] = {-1, 1, 0, 0};
-                int dj[] = {0, 0, -1, 1};
-                for (int d = 0; d < 4; d++) {
-                    int ni = i + di[d], nj = j + dj[d];
-                    if (ni >= 0 && ni < jogo->linhas && nj >= 0 && nj < jogo->colunas) {
-                        char viz = jogo->tabuleiro[ni][nj];
-                        if (viz >= 'a' && viz <= 'z') {
-                            char coord[3] = { 'a' + nj, '1' + ni, '\0' };
-                            pintarBranco(jogo, coord);
-                            alterou = 1;
+    if (!alteracoesFeitas) {
+        for (int i = 0; i < jogo->linhas; i++) {
+            for (int j = 0; j < jogo->colunas; j++) {
+                if (jogo->tabuleiro[i][j] == '#') {
+                    int alterou = 0;
+                    int di[] = {-1, 1, 0, 0};
+                    int dj[] = {0, 0, -1, 1};
+                    for (int d = 0; d < 4; d++) {
+                        int ni = i + di[d], nj = j + dj[d];
+                        if (ni >= 0 && ni < jogo->linhas && nj >= 0 && nj < jogo->colunas) {
+                            char viz = jogo->tabuleiro[ni][nj];
+                            if (viz >= 'a' && viz <= 'z') {
+                                char coord[3] = { 'a' + nj, '1' + ni, '\0' };
+                                pintarBranco(jogo, coord);
+                                alterou = 1;
+                            }
                         }
                     }
-                }
-                if (alterou) {
-                    printf("Ajuda: pintar casas vizinhas de (%c%d)\n", 'a'+j, i+1);
-                    return 1;
+                    if (alterou) {
+                        printf("Ajuda: pintar casas vizinhas de (%c%d)\n", 'a'+j, i+1);
+                        alteracoesFeitas = 1;
+                        break;
+                    }
                 }
             }
+            if (alteracoesFeitas) break;
         }
     }
 
     // 3. Regra: pintar de branco casas que isolariam brancas se fossem riscadas
-    for (int i = 0; i < jogo->linhas; i++) {
-        for (int j = 0; j < jogo->colunas; j++) {
-            char c = jogo->tabuleiro[i][j];
-            if (c >= 'a' && c <= 'z') {
-                // Simula riscar esta casa
-                char original = jogo->tabuleiro[i][j];
-                jogo->tabuleiro[i][j] = '#';
-                int resultado = verificarConectividadeBrancas(jogo);
-                jogo->tabuleiro[i][j] = original;
+    if (!alteracoesFeitas) {
+        for (int i = 0; i < jogo->linhas; i++) {
+            for (int j = 0; j < jogo->colunas; j++) {
+                char c = jogo->tabuleiro[i][j];
+                if (c >= 'a' && c <= 'z') {
+                    // Simula riscar esta casa
+                    char original = jogo->tabuleiro[i][j];
+                    jogo->tabuleiro[i][j] = '#';
+                    int resultado = verificarConectividadeBrancas(jogo);
+                    jogo->tabuleiro[i][j] = original;
 
-                if (resultado != 0) {
-                    char coord[3] = { 'a' + j, '1' + i, '\0' };
-                    printf("Ajuda: pintar de branco %s (evita isolamento)\n", coord);
-                    pintarBranco(jogo, coord);
-                    return 1;
+                    if (resultado != 0) {
+                        char coord[3] = { 'a' + j, '1' + i, '\0' };
+                        printf("Ajuda: pintar de branco %s (evita isolamento)\n", coord);
+                        pintarBranco(jogo, coord);
+                        alteracoesFeitas = 1;
+                        break;
+                    }
                 }
             }
+            if (alteracoesFeitas) break;
         }
     }
 
-    printf("Nenhuma jogada inferida disponível,faça uma jogada antes de usar o comando de ajuda.\n");
-    return 0;
+    // Finaliza o agrupamento (mesmo se não houve alterações)
+    finalizarAgrupamentoMovimentos(jogo);
+    
+    if (!alteracoesFeitas) {
+        printf("Nenhuma jogada inferida disponível, faça uma jogada antes de usar o comando de ajuda.\n");
+    }
+    
+    return alteracoesFeitas;
 }
 
 
@@ -594,6 +696,8 @@ Jogo* copiarJogo(Jogo* original) {
     copia->colunas = original->colunas;
     copia->modoAjudaAtiva = original->modoAjudaAtiva;
     copia->historicoMovimentos = NULL;
+    copia->agrupandoMovimentos = original->agrupandoMovimentos;
+    copia->grupoMovimentos = NULL;
     
     copia->tabuleiro = malloc(copia->linhas * sizeof(char*));
     if (!copia->tabuleiro) {
@@ -667,8 +771,7 @@ void restaurarJogo(Jogo* destino, Jogo* origem) {
     }
 }
 
-// Função auxiliar para backtracking melhorada
-// Não imprime a solução, apenas resolve e retorna o status
+
 int backtrackingResolver(Jogo *jogo) {
     // Aplicar todas as regras determinísticas primeiro
     int alteracoes;
@@ -678,13 +781,13 @@ int backtrackingResolver(Jogo *jogo) {
     do {
         alteracoes = 0;
         
-        // Aplicar Regra 1: Eliminar duplicados em linhas/colunas
+        // Aplicar Regra 1: Eliminar duplicadas em linhas/colunas
         for (int i = 0; i < jogo->linhas; i++) {
             for (int j = 0; j < jogo->colunas; j++) {
                 if (isupper(jogo->tabuleiro[i][j])) {
                     char atual = tolower(jogo->tabuleiro[i][j]);
                     
-                    // Verificar linha e riscar duplicatas
+                    // Verificar linha e riscar duplicadas
                     for (int k = 0; k < jogo->colunas; k++) {
                         if (k != j && tolower(jogo->tabuleiro[i][k]) == atual) {
                             char coord[3] = {'a'+k, '1'+i, '\0'};
@@ -694,7 +797,7 @@ int backtrackingResolver(Jogo *jogo) {
                         }
                     }
                     
-                    // Verificar coluna e riscar duplicatas
+                    // Verificar coluna e riscar duplicadas
                     for (int k = 0; k < jogo->linhas; k++) {
                         if (k != i && tolower(jogo->tabuleiro[k][j]) == atual) {
                             char coord[3] = {'a'+j, '1'+k, '\0'};
@@ -846,7 +949,7 @@ int backtrackingResolver(Jogo *jogo) {
         }
     }
     
-    // Liberar a cópia e criar uma nova para tentar riscar
+    // Dar free à cópia e criar uma nova para tentar riscar
     freeJogo(jogoCopia);
     jogoCopia = copiarJogo(jogo);
     if (!jogoCopia) {
@@ -876,6 +979,31 @@ int backtrackingResolver(Jogo *jogo) {
 int resolverJogo(Jogo *jogo) {
     if (!jogo) return -1;
 
+    // Verificar se o tabuleiro está no estado inicial (todas as casas minúsculas)
+    int estadoInicial = 1;
+    for (int i = 0; i < jogo->linhas && estadoInicial; i++) {
+        for (int j = 0; j < jogo->colunas && estadoInicial; j++) {
+            if (!islower(jogo->tabuleiro[i][j])) {
+                // Se encontrar qualquer carater que não seja minúsculo
+                estadoInicial = 0;
+            }
+        }
+    }
+
+    // Se o tabuleiro não estiver no estado inicial, desfazer todos os movimentos
+    if (!estadoInicial) {
+        printf("Tabuleiro não está no estado inicial. Desfazendo movimentos...\n");
+        int numDesfazimentos = 0;
+        
+        // Continuar a desfazer enquanto houver movimentos no histórico
+        while (jogo->historicoMovimentos != NULL) {
+            desfazerMovimento(jogo);
+            numDesfazimentos++;
+        }
+        
+        printf("Foram desfeitos %d movimentos para retornar ao estado inicial.\n", numDesfazimentos);
+    }
+
     // Cria uma cópia do jogo original
     Jogo *jogoOriginal = copiarJogo(jogo);
     if (!jogoOriginal) {
@@ -889,7 +1017,7 @@ int resolverJogo(Jogo *jogo) {
     do {
         alteracoes = 0;
 
-        // Regra 1: Eliminar duplicatas
+        // Regra 1: Eliminar duplicadas
         for (int i = 0; i < jogo->linhas; i++) {
             for (int j = 0; j < jogo->colunas; j++) {
                 if (isupper(jogo->tabuleiro[i][j])) {

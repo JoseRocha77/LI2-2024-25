@@ -6,6 +6,7 @@ typedef struct Movimento {
     int coluna;
     char estadoAnterior;
     struct Movimento *proximo;
+    struct Movimento *grupoInterno; // Para armazenar movimentos agrupados
 } Movimento;
 
 typedef struct{
@@ -14,6 +15,8 @@ typedef struct{
     int colunas;
     Movimento *historicoMovimentos;
     int modoAjudaAtiva;
+    int agrupandoMovimentos;    // Nova flag para indicar agrupamento
+    Movimento *grupoMovimentos; // Nova lista para movimentos temporários
 } Jogo;
 
 
@@ -50,9 +53,17 @@ int verificarConectividadeBrancas(Jogo *jogo);
 
 // Funções etapa 4
 
+void iniciarAgrupamentoMovimentos(Jogo *jogo);
+
+void finalizarAgrupamentoMovimentos(Jogo *jogo);
+
 int ajudar(Jogo *jogo);
 
 int backtrackingResolver(Jogo *jogo);
+
+Jogo* copiarJogo(Jogo* original);
+
+void restaurarJogo(Jogo* destino, Jogo* origem);
 
 int resolverJogo(Jogo *jogo);
 
