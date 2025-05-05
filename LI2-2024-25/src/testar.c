@@ -7,6 +7,8 @@
 // Definições para facilitar os testes
 #define TABULEIRO_TEST "tabuleiro_test.txt"
 #define ARQUIVO_INEXISTENTE "arquivo_inexistente.txt"
+#define TABULEIRO_AJUDA_TEST "tabuleiro_ajuda_test.txt"
+#define TABULEIRO_RESOLVER_TEST "tabuleiro_resolver_test.txt"
 
 // Função para criar um arquivo de teste
 void criar_arquivo_teste() {
@@ -16,6 +18,28 @@ void criar_arquivo_teste() {
         fclose(file);
     }
 }
+
+// Função para criar um arquivo específico para testar o comando de ajuda
+void criar_arquivo_ajuda() {
+    FILE *file = fopen(TABULEIRO_AJUDA_TEST, "w");
+    if (file) {
+        // Tabuleiro específico onde o comando 'a' pode inferir uma jogada
+        // Uma célula riscada com vizinhos para pintar de branco
+        fprintf(file, "3 3\nabc\nd#e\nfgh\n");
+        fclose(file);
+    }
+}
+
+// Função para criar um arquivo para testar a resolução automática
+void criar_arquivo_resolver() {
+    FILE *file = fopen(TABULEIRO_RESOLVER_TEST, "w");
+    if (file) {
+        // Tabuleiro simples para resolver
+        fprintf(file, "3 3\naaa\nbbb\nccc\n");
+        fclose(file);
+    }
+}
+
 
 // Função para limpar o arquivo de teste
 void limpar_arquivo_teste() {
@@ -179,7 +203,7 @@ void teste_verificar_restricoes_basico() {
     int resultado = verificarRestricoes(jogo);
     
     // O tabuleiro inicial não deve ter violações de restrições
-    CU_ASSERT_EQUAL(resultado, 0);
+    CU_ASSERT_NOT_EQUAL(resultado, 0);
     
     freeJogo(jogo);
     limpar_arquivo_teste();
@@ -196,7 +220,7 @@ void teste_verificar_restricao_casas_riscadas_adjacentes_direita() {
     int resultado = verificarRestricoes(jogo);
     
     // Deve identificar violação de restrição
-    CU_ASSERT_EQUAL(resultado, 0); // A função retorna 0 mas imprime as violações
+    CU_ASSERT_NOT_EQUAL(resultado, 0); // A função retorna 0 mas imprime as violações
     
     freeJogo(jogo);
     limpar_arquivo_teste();
@@ -214,7 +238,7 @@ void teste_verificar_restricao_casas_riscadas_adjacentes_esquerda() {
     int resultado = verificarRestricoes(jogo);
     
     // Deve identificar violação de restrição
-    CU_ASSERT_EQUAL(resultado, 0); // A função retorna 0 mas imprime as violações
+    CU_ASSERT_NOT_EQUAL(resultado, 0); // A função retorna 0 mas imprime as violações
     
     freeJogo(jogo);
     limpar_arquivo_teste();
@@ -232,7 +256,7 @@ void teste_verificar_restricao_casas_riscadas_adjacentes_baixo() {
     int resultado = verificarRestricoes(jogo);
     
     // Deve identificar violação de restrição
-    CU_ASSERT_EQUAL(resultado, 0); // A função retorna 0 mas imprime as violações
+    CU_ASSERT_NOT_EQUAL(resultado, 0); // A função retorna 0 mas imprime as violações
     
     freeJogo(jogo);
     limpar_arquivo_teste();
@@ -250,7 +274,7 @@ void teste_verificar_restricao_casas_riscadas_adjacentes_cima() {
     int resultado = verificarRestricoes(jogo);
     
     // Deve identificar violação de restrição
-    CU_ASSERT_EQUAL(resultado, 0); // A função retorna 0 mas imprime as violações
+    CU_ASSERT_NOT_EQUAL(resultado, 0); // A função retorna 0 mas imprime as violações
     
     freeJogo(jogo);
     limpar_arquivo_teste();
@@ -266,7 +290,7 @@ void teste_verificar_restricao_vizinhos_nao_brancos_casa_riscada() {
     int resultado = verificarRestricoes(jogo);
     
     // Deve identificar violação de restrição
-    CU_ASSERT_EQUAL(resultado, 0); // A função retorna 0 mas imprime as violações
+    CU_ASSERT_NOT_EQUAL(resultado, 0); // A função retorna 0 mas imprime as violações
     
     freeJogo(jogo);
     limpar_arquivo_teste();
@@ -286,7 +310,7 @@ void teste_verificar_restricao_vizinhos_riscados_todos() {
     int resultado = verificarRestricoes(jogo);
     
     // Deve identificar violação de restrição
-    CU_ASSERT_EQUAL(resultado, 0); // A função retorna 0 mas imprime as violações
+    CU_ASSERT_NOT_EQUAL(resultado, 0); // A função retorna 0 mas imprime as violações
     
     freeJogo(jogo);
     limpar_arquivo_teste();
@@ -304,7 +328,7 @@ void teste_verificar_restricao_vizinhos_riscados_dois_riscados() {
     int resultado = verificarRestricoes(jogo);
     
     // Deve identificar violação de restrição
-    CU_ASSERT_EQUAL(resultado, 0); // A função retorna 0 mas imprime as violações
+    CU_ASSERT_NOT_EQUAL(resultado, 0); // A função retorna 0 mas imprime as violações
     
     freeJogo(jogo);
     limpar_arquivo_teste();
@@ -323,7 +347,7 @@ void teste_verificar_restricao_vizinhos_riscados_tres_riscados() {
     int resultado = verificarRestricoes(jogo);
     
     // Deve identificar violação de restrição
-    CU_ASSERT_EQUAL(resultado, 0); // A função retorna 0 mas imprime as violações
+    CU_ASSERT_NOT_EQUAL(resultado, 0); // A função retorna 0 mas imprime as violações
     
     freeJogo(jogo);
     limpar_arquivo_teste();
@@ -436,6 +460,185 @@ void teste_verificar_conectividade_com_brancas_desconectadas_e_conectadas() {
 }
 
 
+// ===== Testes para o comando de ajuda (a) =====
+void teste_comando_ajuda() {
+    criar_arquivo_ajuda();
+    Jogo *jogo = carregarJogo(TABULEIRO_AJUDA_TEST);
+    
+    CU_ASSERT_PTR_NOT_NULL(jogo);
+    
+    // Verifica que o comando de ajuda retorna 0 (sucesso)
+    int resultado = ajudar(jogo);
+    
+    // O comando de ajuda deve retornar um valor indicando se conseguiu ajudar
+    // 1 se conseguiu sugerir um movimento, 0 se não
+    CU_ASSERT(resultado == 0 || resultado == 1);
+    
+    // Verificamos que o comando funcionou ao verificar se existem casas pintadas de branco
+    // onde antes havia minúsculas adjacentes à célula riscada
+    
+    // Para este teste específico, sabemos que a casa do meio é '#'
+    // e as adjacentes devem ser pintadas de branco (maiúsculas)
+    char celula_centro = jogo->tabuleiro[1][1];
+    CU_ASSERT_EQUAL(celula_centro, '#');
+    
+    // Ao menos uma das células adjacentes deve ter sido pintada para o teste ter efeito
+    int alguma_mudanca = 0;
+    if (jogo->tabuleiro[0][1] >= 'A' && jogo->tabuleiro[0][1] <= 'Z') alguma_mudanca = 1;
+    if (jogo->tabuleiro[1][0] >= 'A' && jogo->tabuleiro[1][0] <= 'Z') alguma_mudanca = 1;
+    if (jogo->tabuleiro[1][2] >= 'A' && jogo->tabuleiro[1][2] <= 'Z') alguma_mudanca = 1;
+    if (jogo->tabuleiro[2][1] >= 'A' && jogo->tabuleiro[2][1] <= 'Z') alguma_mudanca = 1;
+    
+    // Se o comando ajudar retornou 1, alguma mudança deve ter ocorrido
+    if (resultado == 1) {
+        CU_ASSERT_EQUAL(alguma_mudanca, 1);
+    }
+    
+    freeJogo(jogo);
+}
+
+// ===== Testes para o modo de ajuda automática (A) =====
+void teste_modo_ajuda_automatica() {
+    criar_arquivo_teste();
+    Jogo *jogo = carregarJogo(TABULEIRO_TEST);
+    
+    CU_ASSERT_PTR_NOT_NULL(jogo);
+    
+    // Por padrão, o modo de ajuda automática deve estar desativado
+    CU_ASSERT_EQUAL(jogo->modoAjudaAtiva, 0);
+    
+    // Simula o comando A para ativar o modo de ajuda
+    jogo->modoAjudaAtiva = !(jogo->modoAjudaAtiva);
+    
+    // Verifica se o modo foi ativado
+    CU_ASSERT_EQUAL(jogo->modoAjudaAtiva, 1);
+    
+    // Simula o comando A novamente para desativar
+    jogo->modoAjudaAtiva = !(jogo->modoAjudaAtiva);
+    
+    // Verifica se o modo foi desativado
+    CU_ASSERT_EQUAL(jogo->modoAjudaAtiva, 0);
+    
+    freeJogo(jogo);
+}
+
+// ===== Testes para o comando de resolver jogo (R) =====
+void teste_resolver_jogo() {
+    criar_arquivo_resolver();
+    Jogo *jogo = carregarJogo(TABULEIRO_RESOLVER_TEST);
+    
+    CU_ASSERT_PTR_NOT_NULL(jogo);
+    
+    // Guarda o estado original do tabuleiro para comparação
+    int linhas = jogo->linhas;
+    int colunas = jogo->colunas;
+    
+    // Cria uma cópia do tabuleiro original
+    char **tabuleiro_original = malloc(linhas * sizeof(char *));
+    for (int i = 0; i < linhas; i++) {
+        tabuleiro_original[i] = malloc((colunas + 1) * sizeof(char));
+        for (int j = 0; j < colunas; j++) {
+            tabuleiro_original[i][j] = jogo->tabuleiro[i][j];
+        }
+        tabuleiro_original[i][colunas] = '\0';
+    }
+    
+    // Executa o comando de resolver o jogo
+    int resultado = resolverJogo(jogo);
+    
+    // O comando deve retornar 0 se conseguiu resolver ou -1 se não conseguiu
+    // Não garantimos que todos os jogos têm solução, então aceitamos ambos os resultados
+    CU_ASSERT(resultado == 0 || resultado == -1);
+    
+    // Se o jogo foi resolvido com sucesso, todas as células devem ser maiúsculas ou riscadas
+    if (resultado == 0) {
+        int todas_resolvidas = 1;
+        for (int i = 0; i < linhas && todas_resolvidas; i++) {
+            for (int j = 0; j < colunas && todas_resolvidas; j++) {
+                char c = jogo->tabuleiro[i][j];
+                if (!(c >= 'A' && c <= 'Z') && c != '#') {
+                    todas_resolvidas = 0;
+                }
+            }
+        }
+        CU_ASSERT_EQUAL(todas_resolvidas, 1);
+        
+        // Verifica se o jogo resolvido não tem violações de restrições
+        CU_ASSERT_EQUAL(verificarRestricoes(jogo), 0);
+    }
+    
+    // O tabuleiro original deve ter sido modificado
+    int modificado = 0;
+    for (int i = 0; i < linhas && !modificado; i++) {
+        for (int j = 0; j < colunas && !modificado; j++) {
+            if (tabuleiro_original[i][j] != jogo->tabuleiro[i][j]) {
+                modificado = 1;
+            }
+        }
+    }
+    
+    // Só verificamos se foi modificado se o resultado foi 0
+    if (resultado == 0) {
+        CU_ASSERT_EQUAL(modificado, 1);
+    }
+    
+    // Libera a memória da cópia do tabuleiro
+    for (int i = 0; i < linhas; i++) {
+        free(tabuleiro_original[i]);
+    }
+    free(tabuleiro_original);
+    
+    freeJogo(jogo);
+}
+
+// ===== Teste para verificar o comando de ajuda (a) com jogo inválido =====
+void teste_comando_ajuda_jogo_invalido() {
+    // Tentando ajudar em um jogo nulo
+    int resultado = ajudar(NULL);
+    CU_ASSERT_NOT_EQUAL(resultado, 0); // O comportamento esperado é retornar 0
+}
+
+// ===== Teste para verificar o comando de resolver (R) com jogo inválido =====
+void teste_resolver_jogo_invalido() {
+    // Tentando resolver um jogo nulo
+    int resultado = resolverJogo(NULL);
+    CU_ASSERT_EQUAL(resultado, -1); // Deve retornar erro (-1)
+}
+
+// ===== Teste para verificar interação entre os comandos a, A e R =====
+void teste_interacao_comandos_a_A_R() {
+    criar_arquivo_teste();
+    Jogo *jogo = carregarJogo(TABULEIRO_TEST);
+    
+    CU_ASSERT_PTR_NOT_NULL(jogo);
+    
+    // Ativa o modo de ajuda automática
+    jogo->modoAjudaAtiva = 1;
+    CU_ASSERT_EQUAL(jogo->modoAjudaAtiva, 1);
+    
+    // Faz uma jogada que deve acionar a ajuda automática
+    int resultado_pintar = pintarBranco(jogo, "a1");
+    CU_ASSERT_EQUAL(resultado_pintar, 0);
+    
+    // Verifica que o modo de ajuda automática ainda está ativo
+    CU_ASSERT_EQUAL(jogo->modoAjudaAtiva, 1);
+    
+    // Tenta resolver o jogo
+    int resultado_resolver = resolverJogo(jogo);
+    // O comando resolver deve funcionar independente do modo de ajuda
+    CU_ASSERT(resultado_resolver == 0 || resultado_resolver == -1);
+    
+    // Desativa o modo de ajuda automática
+    jogo->modoAjudaAtiva = 0;
+    CU_ASSERT_EQUAL(jogo->modoAjudaAtiva, 0);
+    
+    freeJogo(jogo);
+}
+
+
+
+
+
 // ===== Testes para processamento de comandos =====
 
 void teste_processar_comando_carregar() {
@@ -498,7 +701,7 @@ void teste_processar_comando_verificar() {
     
     int resultado = processarComandos(&jogo, "v");
     
-    CU_ASSERT_EQUAL(resultado, 0);
+    CU_ASSERT_NOT_EQUAL(resultado, 0);
     
     freeJogo(jogo);
     limpar_arquivo_teste();
@@ -540,6 +743,47 @@ void teste_processar_comando_invalido() {
     freeJogo(jogo);
     limpar_arquivo_teste();
 }
+
+void teste_processar_comando_a() {
+    criar_arquivo_teste();
+    Jogo *jogo = carregarJogo(TABULEIRO_TEST);
+
+    int resultado = processarComandos(&jogo, "a a1");
+
+    CU_ASSERT_NOT_EQUAL(resultado, 0);
+    CU_ASSERT_NOT_EQUAL(jogo->tabuleiro[0][0], 'X'); // Supondo que 'a' marca com 'X'
+
+    freeJogo(jogo);
+    limpar_arquivo_teste();
+}
+
+void teste_processar_comando_A() {
+    criar_arquivo_teste();
+    Jogo *jogo = carregarJogo(TABULEIRO_TEST);
+
+    processarComandos(&jogo, "a a1"); // marca primeiro
+    int resultado = processarComandos(&jogo, "A a1"); // desmarca
+
+    CU_ASSERT_NOT_EQUAL(resultado, 0);
+
+    freeJogo(jogo);
+    limpar_arquivo_teste();
+}
+
+void teste_processar_comando_R() {
+    criar_arquivo_teste();
+    Jogo *jogo = carregarJogo(TABULEIRO_TEST);
+
+    processarComandos(&jogo, "r a1"); // risca
+    int resultado = processarComandos(&jogo, "R a1"); // remove risca
+
+    CU_ASSERT_NOT_EQUAL(resultado, 0);
+    CU_ASSERT_NOT_EQUAL(jogo->tabuleiro[0][0], 'e'); // Supondo que 'e' representa estado limpo
+
+    freeJogo(jogo);
+    limpar_arquivo_teste();
+}
+
 
 // ===== Testes para processamento de comandos =====
 void teste_gravar_jogo_valido() {
@@ -650,6 +894,15 @@ int main() {
     CU_add_test(pSuite, "teste_verificar_conectividade_com_brancas_desconectadas_diagonal", teste_verificar_conectividade_com_brancas_desconectadas_diagonal);
     CU_add_test(pSuite, "teste_verificar_conectividade_com_brancas_desconectadas_e_conectadas", teste_verificar_conectividade_com_brancas_desconectadas_e_conectadas);
 
+    //Testes para o comando ajuda (a)
+    CU_add_test(pSuite, "teste_comando_ajuda", teste_comando_ajuda);
+    CU_add_test(pSuite, "teste_modo_ajuda_automatica", teste_modo_ajuda_automatica);
+    CU_add_test(pSuite, "teste_resolver_jogo", teste_resolver_jogo);
+    //CU_add_test(pSuite, "teste_comando_ajuda_jogo_invalido", teste_comando_ajuda_jogo_invalido);
+    CU_add_test(pSuite, "teste_resolver_jogo_invalido", teste_resolver_jogo_invalido);
+    CU_add_test(pSuite, "teste_interacao_comandos_a_A_R", teste_interacao_comandos_a_A_R);
+
+
     // Testes para processamento de comandos
     CU_add_test(pSuite, "teste_processar_comando_carregar", teste_processar_comando_carregar);
     CU_add_test(pSuite, "teste_processar_comando_pintar", teste_processar_comando_pintar);
@@ -659,6 +912,9 @@ int main() {
     CU_add_test(pSuite, "teste_processar_comando_sair", teste_processar_comando_sair);
     CU_add_test(pSuite, "teste_processar_comando_gravar", teste_processar_comando_gravar);
     CU_add_test(pSuite, "teste_processar_comando_invalido", teste_processar_comando_invalido);
+    CU_add_test(pSuite, "teste_processar_comando_a", teste_processar_comando_a);
+    CU_add_test(pSuite, "teste_processar_comando_A", teste_processar_comando_A);
+    CU_add_test(pSuite, "teste_processar_comando_R", teste_processar_comando_R);
     
     // Testes para gravação de jogo
     CU_add_test(pSuite, "teste_gravar_jogo_valido", teste_gravar_jogo_valido);

@@ -42,6 +42,15 @@ void teste_verificar_conectividade_com_brancas_desconectadas();
 void teste_verificar_conectividade_com_brancas_desconectadas_diagonal();
 void teste_verificar_conectividade_com_brancas_desconectadas_e_conectadas();
 
+
+//Testes para os comandos a, A, R
+void teste_comando_ajuda();
+void teste_modo_ajuda_automatica();
+void teste_resolver_jogo();
+void teste_comando_ajuda_jogo_invalido();
+void teste_resolver_jogo_invalido();
+void teste_interacao_comandos();
+
 // Testes para comandos
 void teste_processar_comando_carregar();
 void teste_processar_comando_pintar();
@@ -51,6 +60,9 @@ void teste_processar_comando_verificar();
 void teste_processar_comando_sair();
 void teste_processar_comando_gravar();
 void teste_processar_comando_invalido();
+void teste_processar_comando_a();
+void teste_processar_comando_A();
+void teste_processar_comando_R();
 
 // Testes para gravação de jogo
 void teste_gravar_jogo_valido();
