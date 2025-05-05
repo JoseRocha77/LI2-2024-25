@@ -56,6 +56,8 @@ int backtrackingResolver(Jogo *jogo);
 
 int resolverJogo(Jogo *jogo);
 
+int verificarVitoria(Jogo *jogo);
+
 // Função principal
 int processarComandos(Jogo **jogo, char *comando);
 

@@ -1038,7 +1038,26 @@ int resolverJogo(Jogo *jogo) {
 }
 
 
-
+// Nova função para verificar se o jogo está completamente resolvido
+int verificarVitoria(Jogo *jogo) {
+    if (!jogo) return 0;
+    
+    // Verifica se todas as células estão resolvidas (sem letras minúsculas)
+    for (int i = 0; i < jogo->linhas; i++) {
+        for (int j = 0; j < jogo->colunas; j++) {
+            if (islower(jogo->tabuleiro[i][j])) {
+                return 0; // Ainda existem células não resolvidas
+            }
+        }
+    }
+    
+    // Verifica se o tabuleiro está em um estado válido
+    if (verificarRestricoes(jogo) != 0) {
+        return 0; // Há violações de restrições
+    }
+    
+    return 1; // Jogo resolvido e válido
+}
 
 // Função principal ===========================================================================================
 

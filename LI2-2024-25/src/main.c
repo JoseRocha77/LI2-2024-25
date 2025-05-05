@@ -4,9 +4,8 @@
 #include <string.h>
 #include "../include/jogo.h"
 
-int main(void) {
-    Jogo *jogo = NULL;
-    
+// Função para exibir o menu inicial
+void exibirMenuInicial() {
     printf("\n====================Bem-vindo ao jogo Puzzle Hitori!====================\n");
     printf("\nUse 'l <nome_arquivo>' para carregar um jogo.\n");
     printf("Comandos disponíveis:\n");
@@ -20,7 +19,31 @@ int main(void) {
     printf("  A                 - Ativar modo de ajuda automático\n");
     printf("  R                 - Resolver jogo automaticamente\n");
     printf("  s                 - Sair do jogo\n");
+}
 
+// Função para exibir a mensagem de vitória e aguardar ENTER
+void exibirMensagemVitoria() {
+    printf("\n\n");
+    printf("╔═════════════════════════════════════════════════════════════╗\n");
+    printf("║                                                             ║\n");
+    printf("║                 PARABÉNS! VOCÊ VENCEU!                      ║\n");
+    printf("║                                                             ║\n");
+    printf("║          Você completou o puzzle com sucesso!               ║\n");
+    printf("║                                                             ║\n");
+    printf("╚═════════════════════════════════════════════════════════════╝\n\n");
+    
+    printf("Pressione ENTER para voltar ao menu principal...");
+
+    int c;
+    while ((c = getchar()) != '\n');
+    getchar();
+}
+
+
+int main(void) {
+    Jogo *jogo = NULL;
+
+    exibirMenuInicial();
 
     char comando[100];  
     while (1) {
@@ -37,6 +60,15 @@ int main(void) {
 
         if (jogo != NULL && strcmp(comando, "v") != 0 && resultado != -1 && resultado != 1) {
             desenhaJogo(jogo);
+
+            if ( verificarVitoria(jogo)== 1) {
+                exibirMensagemVitoria();
+
+                freeJogo(jogo);
+                jogo = NULL;
+                
+                exibirMenuInicial();
+            }
         }
         
         if (resultado == 1) {
