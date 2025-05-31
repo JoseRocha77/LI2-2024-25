@@ -680,8 +680,25 @@ int ajudar(Jogo *jogo) {
         for (int j = 0; j < jogo->colunas; j++) {
             char atual = jogo->tabuleiro[i][j];
             if (atual >= 'A' && atual <= 'Z') { // Letra branca
-                riscarDuplicadosLinha(jogo, i, tolower(atual), &alteracoesFeitas);
-                riscarDuplicadosColuna(jogo, j, tolower(atual), &alteracoesFeitas);
+                // Verifica linha
+                for (int k = 0; k < jogo->colunas; k++) {
+                    if (jogo->tabuleiro[i][k] == atual + 32) {
+                        char coord[3] = { 'a' + k, '1' + i, '\0' };
+                        printf("Ajuda: riscar %s (igual a branca %c na linha)\n", coord, atual);
+                        riscar(jogo, coord);
+                        alteracoesFeitas = 1;
+                    }
+                }
+                
+                // Verifica coluna
+                for (int k = 0; k < jogo->linhas; k++) {
+                    if (jogo->tabuleiro[k][j] == atual + 32) {
+                        char coord[3] = { 'a' + j, '1' + k, '\0' };
+                        printf("Ajuda: riscar %s (igual a branca %c na coluna)\n", coord, atual);
+                        riscar(jogo, coord);
+                        alteracoesFeitas = 1;
+                    }
+                }
             }
         }
     }
@@ -690,7 +707,27 @@ int ajudar(Jogo *jogo) {
     if (!alteracoesFeitas) {
         for (int i = 0; i < jogo->linhas; i++) {
             for (int j = 0; j < jogo->colunas; j++) {
-                aplicarAosVizinhos(jogo, i, j, pintarVizinhoSeMinuscula, &alteracoesFeitas);
+                if (jogo->tabuleiro[i][j] == '#') {
+                    int alterou = 0;
+                    int di[] = {-1, 1, 0, 0};
+                    int dj[] = {0, 0, -1, 1};
+                    for (int d = 0; d < 4; d++) {
+                        int ni = i + di[d], nj = j + dj[d];
+                        if (ni >= 0 && ni < jogo->linhas && nj >= 0 && nj < jogo->colunas) {
+                            char viz = jogo->tabuleiro[ni][nj];
+                            if (viz >= 'a' && viz <= 'z') {
+                                char coord[3] = { 'a' + nj, '1' + ni, '\0' };
+                                pintarBranco(jogo, coord);
+                                alterou = 1;
+                            }
+                        }
+                    }
+                    if (alterou) {
+                        printf("Ajuda: pintar casas vizinhas de (%c%d)\n", 'a'+j, i+1);
+                        alteracoesFeitas = 1;
+                        break;
+                    }
+                }
             }
             if (alteracoesFeitas) break;
         }
@@ -702,7 +739,13 @@ int ajudar(Jogo *jogo) {
             for (int j = 0; j < jogo->colunas; j++) {
                 char c = jogo->tabuleiro[i][j];
                 if (c >= 'a' && c <= 'z') {
-                    if (simulaRiscarEVerificaConectividade(jogo, i, j) != 0) {
+                    // Simula riscar esta casa
+                    char original = jogo->tabuleiro[i][j];
+                    jogo->tabuleiro[i][j] = '#';
+                    int resultado = verificarConectividadeBrancas(jogo);
+                    jogo->tabuleiro[i][j] = original;
+
+                    if (resultado != 0) {
                         char coord[3] = { 'a' + j, '1' + i, '\0' };
                         printf("Ajuda: pintar de branco %s (evita isolamento)\n", coord);
                         pintarBranco(jogo, coord);
@@ -724,7 +767,6 @@ int ajudar(Jogo *jogo) {
     
     return alteracoesFeitas;
 }
-
 
 
 Jogo* copiarJogo(Jogo* original) {
@@ -1099,17 +1141,65 @@ int processarComandos(Jogo **jogo, char *comando) {
         ajudar(*jogo);
         return 0;
     }
-    
 
-    if (strcmp(comando, "A") == 0) {
-        (*jogo)->modoAjudaAtiva = !((*jogo)->modoAjudaAtiva);
-        if ((*jogo)->modoAjudaAtiva) {
-            printf("Modo de ajuda automática ATIVADO.\n");
-        } else {
-            printf("Modo de ajuda automática DESATIVADO.\n");
-        }
-        return 0;
+if (strcmp(comando, "A") == 0) {
+    if (!(*jogo)) {
+        printf("Jogo não carregado. Use 'l <arquivo>' para carregar um jogo.\n");
+        return -1;
     }
+    
+    printf("Executando ajuda automática contínua...\n");
+    int totalAlteracoes = 0;
+    int iteracao = 1;
+    int alteracoesNaIteracao;
+    
+    do {
+        printf("\n--- Iteração %d ---\n", iteracao);
+        alteracoesNaIteracao = ajudar(*jogo);
+        
+        if (alteracoesNaIteracao > 0) {
+            totalAlteracoes += alteracoesNaIteracao;
+            printf("Alterações feitas nesta iteração: %d\n", alteracoesNaIteracao);
+            
+            // Desenha o tabuleiro após cada iteração com alterações
+            printf("\nTabuleiro após iteração %d:\n", iteracao);
+            desenhaJogo(*jogo);
+            
+            // Verifica se o jogo foi completamente resolvido
+            if (verificarVitoria(*jogo)) {
+                break;
+            }
+            
+            iteracao++;
+        } else {
+            printf("Nenhuma alteração possível nesta iteração.\n");
+        }
+        
+    } while (alteracoesNaIteracao > 0);
+    
+    printf("\n=== Resumo da Ajuda Automática ===\n");
+    printf("Total de iterações executadas: %d\n", iteracao);
+    printf("Total de alterações realizadas: %d\n", totalAlteracoes);
+    
+    if (totalAlteracoes > 0) {
+        printf("Processo de ajuda automática concluído.\n");
+        
+        // Verifica o estado final do jogo
+        printf("\nVerificando estado final...\n");
+        if (verificarVitoria(*jogo)) { 
+        } else {
+            
+            // Mostra se há violações
+            int violacoes = verificarRestricoes(*jogo);
+            if (violacoes == 0) {
+            }
+        }
+    } else {
+        printf("Nenhuma alteração foi possível. O tabuleiro permanece inalterado.\n");
+    }
+    
+    return 0;
+}
 
     // Comando para resolver automaticamente o jogo
     if (strcmp(comando, "R") == 0) {
