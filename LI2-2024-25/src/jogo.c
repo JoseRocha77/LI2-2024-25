@@ -343,6 +343,93 @@ int desfazerMovimento(Jogo *jogo) {
     return 0;
 }
 
+// Verifica se há duplicados de letras brancas (A-Z) numa linha
+int verificarDuplicadosLinha(Jogo *jogo, int linha) {
+    int contagem[26] = {0};
+
+    for (int j = 0; j < jogo->colunas; j++) {
+        char c = toupper(jogo->tabuleiro[linha][j]);
+        if (c >= 'A' && c <= 'Z') {
+            if (contagem[c - 'A']++ > 0) {
+                return 1; // Duplicado encontrado
+            }
+        }
+    }
+    return 0; // Sem duplicados
+}
+
+// Verifica se há duplicados de letras brancas (A-Z) numa coluna
+int verificarDuplicadosColuna(Jogo *jogo, int coluna) {
+    int contagem[26] = {0};
+
+    for (int i = 0; i < jogo->linhas; i++) {
+        char c = toupper(jogo->tabuleiro[i][coluna]);
+        if (c >= 'A' && c <= 'Z') {
+            if (contagem[c - 'A']++ > 0) {
+                return 1; // Duplicado encontrado
+            }
+        }
+    }
+    return 0; // Sem duplicados
+}
+
+// Devolve o número de adjacências de casas riscadas à posição (i,j)
+int contarRiscadasAdjacentes(Jogo *jogo, int i, int j) {
+    int count = 0;
+    int di[] = {0, 1};  // direita e abaixo
+    int dj[] = {1, 0};
+
+    for (int d = 0; d < 2; d++) {
+        int ni = i + di[d];
+        int nj = j + dj[d];
+
+        if (ni >= 0 && ni < jogo->linhas && nj >= 0 && nj < jogo->colunas) {
+            if (jogo->tabuleiro[ni][nj] == '#') {
+                count++;
+            }
+        }
+    }
+
+    return count;
+}
+
+void aplicarAosVizinhos(Jogo *jogo, int i, int j, void (*acao)(Jogo *, int, int, void *), void *extra) {
+    int di[] = {-1, 1, 0, 0};
+    int dj[] = {0, 0, -1, 1};
+
+    for (int d = 0; d < 4; d++) {
+        int ni = i + di[d];
+        int nj = j + dj[d];
+
+        if (ni >= 0 && ni < jogo->linhas && nj >= 0 && nj < jogo->colunas) {
+            acao(jogo, ni, nj, extra);
+        }
+    }
+}
+
+void verificarVizinhoBranco(Jogo *jogo, int i, int j, void *violacoesPtr) {
+    int *violacoes = (int *)violacoesPtr;
+    char c = jogo->tabuleiro[i][j];
+    if (c != '#' && !(c >= 'A' && c <= 'Z')) {
+        printf("Violação: Vizinho (%c%d) de casa riscada não é branco\n", 'a'+j, i+1);
+        (*violacoes)++;
+    }
+}
+
+void pintarVizinhoSeMinuscula(Jogo *jogo, int i, int j, void *alteracoesPtr) {
+    int *alteracoes = (int *)alteracoesPtr;
+    if (islower(jogo->tabuleiro[i][j])) {
+        char coord[3] = {'a'+j, '1'+i, '\0'};
+        if (pintarBranco(jogo, coord) == 0) {
+            printf("Ajuda: pintado %s (vizinho de riscada)\n", coord);
+            (*alteracoes)++;
+        }
+    }
+}
+
+
+
+
 int verificarRestricoes(Jogo *jogo) {
     if (!jogo) return -1;
     
@@ -350,81 +437,29 @@ int verificarRestricoes(Jogo *jogo) {
     
     // Verificação de símbolos únicos em linhas/colunas
     for (int i = 0; i < jogo->linhas; i++) {
-        int contagem[26] = {0};
-        for (int j = 0; j < jogo->colunas; j++) {
-            char c = toupper(jogo->tabuleiro[i][j]);
-            if (c >= 'A' && c <= 'Z') {
-                if (contagem[c - 'A']++ > 0) {
-                    printf("Violação: Múltiplos %c na linha %d\n", c, i+1);
-                    violacoes++;
-                }
-            }
-        }
+    if (verificarDuplicadosLinha(jogo, i)) {
+        printf("Violação: Duplicados na linha %d\n", i+1);
+        violacoes++;
     }
+}
     
     for (int j = 0; j < jogo->colunas; j++) {
-        int contagem[26] = {0};
-        for (int i = 0; i < jogo->linhas; i++) {
-            char c = toupper(jogo->tabuleiro[i][j]);
-            if (c >= 'A' && c <= 'Z') {
-                if (contagem[c - 'A']++ > 0) {
-                    printf("Violação: Múltiplos %c na coluna %c\n", c, 'a'+j);
-                    violacoes++;
-                }
-            }
-        }
+    if (verificarDuplicadosColuna(jogo, j)) {
+        printf("Violação: Duplicados na coluna %c\n", 'a'+j);
+        violacoes++;
     }
+}
 
 
     // Verifica a restrição: casas riscadas não podem ser adjacentes
     for (int i = 0; i < jogo->linhas; i++) {
         for (int j = 0; j < jogo->colunas; j++) {
             if (jogo->tabuleiro[i][j] == '#') {
-                // Verifica vizinho à direita
-                if (j < jogo->colunas - 1 && jogo->tabuleiro[i][j+1] == '#') {
-                    printf("Violação: Casas riscadas adjacentes em (%c%d) e (%c%d)\n", 
-                           'a' + j, i + 1, 'a' + j + 1, i + 1);
-                    violacoes++;
-                }
-
-                // Verifica vizinho abaixo
-                if (i < jogo->linhas - 1 && jogo->tabuleiro[i+1][j] == '#') {
-                    printf("Violação: Casas riscadas adjacentes em (%c%d) e (%c%d)\n", 
-                           'a' + j, i + 1, 'a' + j, i + 2);
-                    violacoes++;
-                }
-
-                // Verifica se vizinhos ortogonais são brancos
-                // Cima
-                if (i > 0 && jogo->tabuleiro[i-1][j] != '#' && 
-                    !(jogo->tabuleiro[i-1][j] >= 'A' && jogo->tabuleiro[i-1][j] <= 'Z')) {
-                    printf("Violação: Casa (%c%d) riscada, mas o vizinho acima (%c%d) não é branco\n", 
-                           'a' + j, i + 1, 'a' + j, i);
-                    violacoes++;
-                }
-
-                // Baixo
-                if (i < jogo->linhas - 1 && jogo->tabuleiro[i+1][j] != '#' && 
-                    !(jogo->tabuleiro[i+1][j] >= 'A' && jogo->tabuleiro[i+1][j] <= 'Z')) {
-                    printf("Violação: Casa (%c%d) riscada, mas o vizinho abaixo (%c%d) não é branco\n", 
-                           'a' + j, i + 1, 'a' + j, i + 2);
-                    violacoes++;
-                }
-
-                // Esquerda
-                if (j > 0 && jogo->tabuleiro[i][j-1] != '#' && 
-                    !(jogo->tabuleiro[i][j-1] >= 'A' && jogo->tabuleiro[i][j-1] <= 'Z')) {
-                    printf("Violação: Casa (%c%d) riscada, mas o vizinho à esquerda (%c%d) não é branco\n", 
-                           'a' + j, i + 1, 'a' + j - 1, i + 1);
-                    violacoes++;
-                }
-
-                // Direita
-                if (j < jogo->colunas - 1 && jogo->tabuleiro[i][j+1] != '#' && 
-                    !(jogo->tabuleiro[i][j+1] >= 'A' && jogo->tabuleiro[i][j+1] <= 'Z')) {
-                    printf("Violação: Casa (%c%d) riscada, mas o vizinho à direita (%c%d) não é branco\n", 
-                           'a' + j, i + 1, 'a' + j + 1, i + 1);
-                    violacoes++;
+                int adjacentes = contarRiscadasAdjacentes(jogo, i, j);
+                aplicarAosVizinhos(jogo, i, j, verificarVizinhoBranco, &violacoes);
+                if (adjacentes > 0) {
+                    printf("Violação: Casas riscadas adjacentes a (%c%d)\n", 'a'+j, i+1);
+                    violacoes += adjacentes;
                 }
             }
         }
@@ -551,6 +586,55 @@ void iniciarAgrupamentoMovimentos(Jogo *jogo) {
     jogo->grupoMovimentos = NULL;
 }
 
+int simulaRiscarEVerificaConectividade(Jogo *jogo, int i, int j) {
+    char original = jogo->tabuleiro[i][j];
+    jogo->tabuleiro[i][j] = '#';
+    int resultado = verificarConectividadeBrancas(jogo);
+    jogo->tabuleiro[i][j] = original;
+    return resultado;
+}
+
+int existeDuplicadoNaLinha(Jogo *jogo, int linha, int colunaIgnorar, char celula) {
+    for (int j = 0; j < jogo->colunas; j++) {
+        if (j != colunaIgnorar && jogo->tabuleiro[linha][j] == celula)
+            return 1;
+    }
+    return 0;
+}
+
+int existeDuplicadoNaColuna(Jogo *jogo, int coluna, int linhaIgnorar, char celula) {
+    for (int i = 0; i < jogo->linhas; i++) {
+        if (i != linhaIgnorar && jogo->tabuleiro[i][coluna] == celula)
+            return 1;
+    }
+    return 0;
+}
+
+void riscarDuplicadosLinha(Jogo *jogo, int linha, char letra, int *alteracoes) {
+    for (int j = 0; j < jogo->colunas; j++) {
+        if (tolower(jogo->tabuleiro[linha][j]) == letra && islower(jogo->tabuleiro[linha][j])) {
+            char coord[3] = {'a'+j, '1'+linha, '\0'};
+            if (riscar(jogo, coord) == 0) {
+                printf("Ajuda: riscado %s (duplicado na linha)\n", coord);
+                (*alteracoes)++;
+            }
+        }
+    }
+}
+
+void riscarDuplicadosColuna(Jogo *jogo, int coluna, char letra, int *alteracoes) {
+    for (int i = 0; i < jogo->linhas; i++) {
+        if (tolower(jogo->tabuleiro[i][coluna]) == letra && islower(jogo->tabuleiro[i][coluna])) {
+            char coord[3] = {'a'+coluna, '1'+i, '\0'};
+            if (riscar(jogo, coord) == 0) {
+                printf("Ajuda: riscado %s (duplicado na coluna)\n", coord);
+                (*alteracoes)++;
+            }
+        }
+    }
+}
+
+
 void finalizarAgrupamentoMovimentos(Jogo *jogo) {
     if (!jogo || !jogo->agrupandoMovimentos) return;
     
@@ -596,25 +680,8 @@ int ajudar(Jogo *jogo) {
         for (int j = 0; j < jogo->colunas; j++) {
             char atual = jogo->tabuleiro[i][j];
             if (atual >= 'A' && atual <= 'Z') { // Letra branca
-                // Verifica linha
-                for (int k = 0; k < jogo->colunas; k++) {
-                    if (jogo->tabuleiro[i][k] == atual + 32) {
-                        char coord[3] = { 'a' + k, '1' + i, '\0' };
-                        printf("Ajuda: riscar %s (igual a branca %c na linha)\n", coord, atual);
-                        riscar(jogo, coord);
-                        alteracoesFeitas = 1;
-                    }
-                }
-                
-                // Verifica coluna
-                for (int k = 0; k < jogo->linhas; k++) {
-                    if (jogo->tabuleiro[k][j] == atual + 32) {
-                        char coord[3] = { 'a' + j, '1' + k, '\0' };
-                        printf("Ajuda: riscar %s (igual a branca %c na coluna)\n", coord, atual);
-                        riscar(jogo, coord);
-                        alteracoesFeitas = 1;
-                    }
-                }
+                riscarDuplicadosLinha(jogo, i, tolower(atual), &alteracoesFeitas);
+                riscarDuplicadosColuna(jogo, j, tolower(atual), &alteracoesFeitas);
             }
         }
     }
@@ -623,27 +690,7 @@ int ajudar(Jogo *jogo) {
     if (!alteracoesFeitas) {
         for (int i = 0; i < jogo->linhas; i++) {
             for (int j = 0; j < jogo->colunas; j++) {
-                if (jogo->tabuleiro[i][j] == '#') {
-                    int alterou = 0;
-                    int di[] = {-1, 1, 0, 0};
-                    int dj[] = {0, 0, -1, 1};
-                    for (int d = 0; d < 4; d++) {
-                        int ni = i + di[d], nj = j + dj[d];
-                        if (ni >= 0 && ni < jogo->linhas && nj >= 0 && nj < jogo->colunas) {
-                            char viz = jogo->tabuleiro[ni][nj];
-                            if (viz >= 'a' && viz <= 'z') {
-                                char coord[3] = { 'a' + nj, '1' + ni, '\0' };
-                                pintarBranco(jogo, coord);
-                                alterou = 1;
-                            }
-                        }
-                    }
-                    if (alterou) {
-                        printf("Ajuda: pintar casas vizinhas de (%c%d)\n", 'a'+j, i+1);
-                        alteracoesFeitas = 1;
-                        break;
-                    }
-                }
+                aplicarAosVizinhos(jogo, i, j, pintarVizinhoSeMinuscula, &alteracoesFeitas);
             }
             if (alteracoesFeitas) break;
         }
@@ -655,13 +702,7 @@ int ajudar(Jogo *jogo) {
             for (int j = 0; j < jogo->colunas; j++) {
                 char c = jogo->tabuleiro[i][j];
                 if (c >= 'a' && c <= 'z') {
-                    // Simula riscar esta casa
-                    char original = jogo->tabuleiro[i][j];
-                    jogo->tabuleiro[i][j] = '#';
-                    int resultado = verificarConectividadeBrancas(jogo);
-                    jogo->tabuleiro[i][j] = original;
-
-                    if (resultado != 0) {
+                    if (simulaRiscarEVerificaConectividade(jogo, i, j) != 0) {
                         char coord[3] = { 'a' + j, '1' + i, '\0' };
                         printf("Ajuda: pintar de branco %s (evita isolamento)\n", coord);
                         pintarBranco(jogo, coord);
@@ -771,398 +812,194 @@ void restaurarJogo(Jogo* destino, Jogo* origem) {
     }
 }
 
-
-int backtrackingResolver(Jogo *jogo) {
-    // Aplicar todas as regras determinísticas primeiro
-    int alteracoes;
-    int maxIteracoes = 50;
-    int iteracoes = 0;
+// Função auxiliar para verificar se um movimento é válido
+int movimentoValido(Jogo *jogo, int linha, int coluna) {
+    if (!jogo) return 0;
     
-    do {
-        alteracoes = 0;
+    char celula = jogo->tabuleiro[linha][coluna];
+    
+    if (celula >= 'A' && celula <= 'Z') {
+        // Verificar regra: apenas uma maiúscula de cada tipo por linha/coluna
+        if (existeDuplicadoNaLinha(jogo, linha, coluna, celula)) return 0;
+        if (existeDuplicadoNaColuna(jogo, coluna, linha, celula)) return 0;
+    } else if (celula == '#') {
+        // Verificar regra: vizinhos de casa riscada devem ser brancos
+        int vizinhos[][2] = {{-1,0}, {1,0}, {0,-1}, {0,1}};
         
-        // Aplicar Regra 1: Eliminar duplicadas em linhas/colunas
-        for (int i = 0; i < jogo->linhas; i++) {
-            for (int j = 0; j < jogo->colunas; j++) {
-                if (isupper(jogo->tabuleiro[i][j])) {
-                    char atual = tolower(jogo->tabuleiro[i][j]);
-                    
-                    // Verificar linha e riscar duplicadas
-                    for (int k = 0; k < jogo->colunas; k++) {
-                        if (k != j && tolower(jogo->tabuleiro[i][k]) == atual) {
-                            char coord[3] = {'a'+k, '1'+i, '\0'};
-                            if (islower(jogo->tabuleiro[i][k]) && riscar(jogo, coord) == 0) {
-                                alteracoes++;
-                            }
-                        }
-                    }
-                    
-                    // Verificar coluna e riscar duplicadas
-                    for (int k = 0; k < jogo->linhas; k++) {
-                        if (k != i && tolower(jogo->tabuleiro[k][j]) == atual) {
-                            char coord[3] = {'a'+j, '1'+k, '\0'};
-                            if (islower(jogo->tabuleiro[k][j]) && riscar(jogo, coord) == 0) {
-                                alteracoes++;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        
-        // Regra 2: Vizinhos de casas riscadas devem ser brancos
-        for (int i = 0; i < jogo->linhas; i++) {
-            for (int j = 0; j < jogo->colunas; j++) {
-                if (jogo->tabuleiro[i][j] == '#') {
-                    int di[] = {-1, 1, 0, 0};
-                    int dj[] = {0, 0, -1, 1};
-                    
-                    for (int d = 0; d < 4; d++) {
-                        int ni = i + di[d];
-                        int nj = j + dj[d];
-                        
-                        if (ni >= 0 && ni < jogo->linhas && nj >= 0 && nj < jogo->colunas) {
-                            if (islower(jogo->tabuleiro[ni][nj])) {
-                                char coord[3] = {'a'+nj, '1'+ni, '\0'};
-                                if (pintarBranco(jogo, coord) == 0) {
-                                    alteracoes++;
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        
-        // Regra 3: Se uma letra só aparece uma vez na linha ou coluna, deve ser branca
-        // Linhas
-        for (int i = 0; i < jogo->linhas; i++) {
-            for (char letra = 'a'; letra <= 'z'; letra++) {
-                int count = 0;
-                int pos = -1;
+        for (int v = 0; v < 4; v++) {
+            int ni = linha + vizinhos[v][0];
+            int nj = coluna + vizinhos[v][1];
+            
+            if (ni >= 0 && ni < jogo->linhas && nj >= 0 && nj < jogo->colunas) {
+                char vizinho = jogo->tabuleiro[ni][nj]; 
                 
-                for (int j = 0; j < jogo->colunas; j++) {
-                    if (tolower(jogo->tabuleiro[i][j]) == letra) {
-                        count++;
-                        pos = j;
-                    }
-                }
-                
-                if (count == 1 && pos != -1 && islower(jogo->tabuleiro[i][pos])) {
-                    char coord[3] = {'a'+pos, '1'+i, '\0'};
-                    if (pintarBranco(jogo, coord) == 0) {
-                        alteracoes++;
-                    }
-                }
-            }
-        }
-        
-        // Colunas
-        for (int j = 0; j < jogo->colunas; j++) {
-            for (char letra = 'a'; letra <= 'z'; letra++) {
-                int count = 0;
-                int pos = -1;
-                
-                for (int i = 0; i < jogo->linhas; i++) {
-                    if (tolower(jogo->tabuleiro[i][j]) == letra) {
-                        count++;
-                        pos = i;
-                    }
-                }
-                
-                if (count == 1 && pos != -1 && islower(jogo->tabuleiro[pos][j])) {
-                    char coord[3] = {'a'+j, '1'+pos, '\0'};
-                    if (pintarBranco(jogo, coord) == 0) {
-                        alteracoes++;
-                    }
-                }
-            }
-        }
-        
-        iteracoes++;
-    } while (alteracoes > 0 && iteracoes < maxIteracoes);
-    
-    // Verificar se o jogo atual tem violações evidentes
-    // 1. Verificar casas riscadas adjacentes
-    for (int i = 0; i < jogo->linhas; i++) {
-        for (int j = 0; j < jogo->colunas; j++) {
-            if (jogo->tabuleiro[i][j] == '#') {
-                // Verifica vizinho à direita
-                if (j < jogo->colunas - 1 && jogo->tabuleiro[i][j+1] == '#') {
-                    return -1; // Violação: casas riscadas adjacentes
-                }
-                // Verifica vizinho abaixo
-                if (i < jogo->linhas - 1 && jogo->tabuleiro[i+1][j] == '#') {
-                    return -1; // Violação: casas riscadas adjacentes
+                // Se o vizinho não é maiúscula nem riscado, e é uma letra
+                if (vizinho >= 'a' && vizinho <= 'z') {
+                    // Temporariamente não consideramos inválido ainda
+                    // pois o vizinho pode ser processado depois
+                    continue;
+                } else if (vizinho == '#') {
+                    return 0; // Violação: dois riscados adjacentes
                 }
             }
         }
     }
     
-    // Verifica se todas as células estão resolvidas
-    int completo = 1;
-    int linha_nao_resolvida = -1;
-    int coluna_nao_resolvida = -1;
+    // Verificação básica de conectividade pode ser muito cara aqui
+    // Melhor fazer verificação completa apenas no final
     
-    for (int i = 0; i < jogo->linhas && completo; i++) {
-        for (int j = 0; j < jogo->colunas && completo; j++) {
-            if (islower(jogo->tabuleiro[i][j])) {
-                completo = 0;
-                linha_nao_resolvida = i;
-                coluna_nao_resolvida = j;
-            }
-        }
-    }
-    
-    // Se todas as células estão resolvidas, verifica se a solução é válida
-    if (completo) {
-        // Verificar conectividade das casas brancas
-        if (verificarConectividadeBrancas(jogo) != 0) {
-            return -1; // Violação: casas brancas não conectadas
-        }
-        
-        // Verificar outras restrições
-        return verificarRestricoes(jogo) == 0 ? 0 : -1;
-    }
-    
-    // Criar uma cópia do jogo para tentar pintar de branco
-    Jogo *jogoCopia = copiarJogo(jogo);
-    if (!jogoCopia) {
-        return -1; // Falha ao criar cópia
-    }
-    
-    char coord[3] = {'a' + coluna_nao_resolvida, '1' + linha_nao_resolvida, '\0'};
-    
-    // Tenta pintar de branco primeiro
-    if (pintarBranco(jogoCopia, coord) == 0) {
-        // Aplicar regras determinísticas na cópia pintada de branco
-        int result = backtrackingResolver(jogoCopia);
-        if (result == 0) {
-            // Copiar a solução encontrada de volta para o jogo original
-            for (int i = 0; i < jogo->linhas; i++) {
-                for (int j = 0; j < jogo->colunas; j++) {
-                    jogo->tabuleiro[i][j] = jogoCopia->tabuleiro[i][j];
-                }
-            }
-            freeJogo(jogoCopia);
-            return 0;
-        }
-    }
-    
-    // Dar free à cópia e criar uma nova para tentar riscar
-    freeJogo(jogoCopia);
-    jogoCopia = copiarJogo(jogo);
-    if (!jogoCopia) {
-        return -1; // Falha ao criar cópia
-    }
-
-    // Tenta riscar a célula
-    if (riscar(jogoCopia, coord) == 0) {
-        // Aplicar regras determinísticas na cópia riscada
-        int result = backtrackingResolver(jogoCopia);
-        if (result == 0) {
-            // Copiar a solução encontrada de volta para o jogo original
-            for (int i = 0; i < jogo->linhas; i++) {
-                for (int j = 0; j < jogo->colunas; j++) {
-                    jogo->tabuleiro[i][j] = jogoCopia->tabuleiro[i][j];
-                }
-            }
-            freeJogo(jogoCopia);
-            return 0;
-        }
-    }
-
-    freeJogo(jogoCopia);
-    return -1;
+    return 1; // Movimento parece válido
 }
 
 int resolverJogo(Jogo *jogo) {
-    if (!jogo) return -1;
-
-    // Verificar se o tabuleiro está no estado inicial (todas as casas minúsculas)
-    int estadoInicial = 1;
-    for (int i = 0; i < jogo->linhas && estadoInicial; i++) {
-        for (int j = 0; j < jogo->colunas && estadoInicial; j++) {
-            if (!islower(jogo->tabuleiro[i][j])) {
-                // Se encontrar qualquer carater que não seja minúsculo
-                estadoInicial = 0;
-            }
-        }
-    }
-
-    // Se o tabuleiro não estiver no estado inicial, desfazer todos os movimentos
-    if (!estadoInicial) {
-        printf("Tabuleiro não está no estado inicial. Desfazendo movimentos...\n");
-        int numDesfazimentos = 0;
-        
-        // Continuar a desfazer enquanto houver movimentos no histórico
-        while (jogo->historicoMovimentos != NULL) {
-            desfazerMovimento(jogo);
-            numDesfazimentos++;
-        }
-        
-        printf("Foram desfeitos %d movimentos para retornar ao estado inicial.\n", numDesfazimentos);
-    }
-
-    // Cria uma cópia do jogo original
-    Jogo *jogoOriginal = copiarJogo(jogo);
-    if (!jogoOriginal) {
-        printf("Erro ao criar cópia do jogo original.\n");
+    if (!jogo) {
+        printf("Erro: Jogo inválido.\n");
         return -1;
     }
-
-    int alteracoes, totalAlteracoes = 0, resolvido = 0;
-    int iteracoes = 0, maxIteracoes = 100;
-
-    do {
-        alteracoes = 0;
-
-        // Regra 1: Eliminar duplicadas
-        for (int i = 0; i < jogo->linhas; i++) {
-            for (int j = 0; j < jogo->colunas; j++) {
-                if (isupper(jogo->tabuleiro[i][j])) {
-                    char atual = tolower(jogo->tabuleiro[i][j]);
-
-                    for (int k = 0; k < jogo->colunas; k++) {
-                        if (k != j && tolower(jogo->tabuleiro[i][k]) == atual) {
-                            char coord[3] = { 'a' + k, '1' + i, '\0' };
-                            if (islower(jogo->tabuleiro[i][k]) && riscar(jogo, coord) == 0) {
-                                alteracoes++;
-                            }
-                        }
-                    }
-
-                    for (int k = 0; k < jogo->linhas; k++) {
-                        if (k != i && tolower(jogo->tabuleiro[k][j]) == atual) {
-                            char coord[3] = { 'a' + j, '1' + k, '\0' };
-                            if (islower(jogo->tabuleiro[k][j]) && riscar(jogo, coord) == 0) {
-                                alteracoes++;
-                            }
-                        }
-                    }
-                }
-            }
+    
+    printf("Iniciando resolução do jogo...\n");
+    
+    // Fase 1: Resetar o tabuleiro para o estado inicial
+    printf("Resetando tabuleiro para o estado inicial...\n");
+    int movimentosDesfeitos = 0;
+    
+    // Desfazer todos os movimentos até voltar ao estado inicial
+    while (jogo->historicoMovimentos != NULL) {
+        if (desfazerMovimento(jogo) == 0) {
+            movimentosDesfeitos++;
+        } else {
+            printf("Erro ao desfazer movimento.\n");
+            return -1;
         }
-
-        // Regra 2: Vizinhos de riscados devem ser brancos
-        for (int i = 0; i < jogo->linhas; i++) {
-            for (int j = 0; j < jogo->colunas; j++) {
-                if (jogo->tabuleiro[i][j] == '#') {
-                    int di[] = { -1, 1, 0, 0 };
-                    int dj[] = { 0, 0, -1, 1 };
-
-                    for (int d = 0; d < 4; d++) {
-                        int ni = i + di[d];
-                        int nj = j + dj[d];
-
-                        if (ni >= 0 && ni < jogo->linhas && nj >= 0 && nj < jogo->colunas) {
-                            if (islower(jogo->tabuleiro[ni][nj])) {
-                                char coord[3] = { 'a' + nj, '1' + ni, '\0' };
-                                if (pintarBranco(jogo, coord) == 0) {
-                                    alteracoes++;
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        // Regra 3: Letras únicas na linha devem ser brancas
-        for (int i = 0; i < jogo->linhas; i++) {
-            for (char letra = 'a'; letra <= 'z'; letra++) {
-                int count = 0, pos = -1;
-                for (int j = 0; j < jogo->colunas; j++) {
-                    if (tolower(jogo->tabuleiro[i][j]) == letra) {
-                        count++;
-                        pos = j;
-                    }
-                }
-                if (count == 1 && pos != -1 && islower(jogo->tabuleiro[i][pos])) {
-                    char coord[3] = { 'a' + pos, '1' + i, '\0' };
-                    if (pintarBranco(jogo, coord) == 0) {
-                        alteracoes++;
-                    }
-                }
-            }
-        }
-
-        // Regra 3: Letras únicas na coluna devem ser brancas
-        for (int j = 0; j < jogo->colunas; j++) {
-            for (char letra = 'a'; letra <= 'z'; letra++) {
-                int count = 0, pos = -1;
-                for (int i = 0; i < jogo->linhas; i++) {
-                    if (tolower(jogo->tabuleiro[i][j]) == letra) {
-                        count++;
-                        pos = i;
-                    }
-                }
-                if (count == 1 && pos != -1 && islower(jogo->tabuleiro[pos][j])) {
-                    char coord[3] = { 'a' + j, '1' + pos, '\0' };
-                    if (pintarBranco(jogo, coord) == 0) {
-                        alteracoes++;
-                    }
-                }
-            }
-        }
-
-        // Regra 4: Prevenir desconexão de áreas brancas
-        for (int i = 0; i < jogo->linhas; i++) {
-            for (int j = 0; j < jogo->colunas; j++) {
-                if (islower(jogo->tabuleiro[i][j])) {
-                    char original = jogo->tabuleiro[i][j];
-                    jogo->tabuleiro[i][j] = '#';
-                    int resultado = verificarConectividadeBrancas(jogo);
-                    jogo->tabuleiro[i][j] = original;
-
-                    if (resultado != 0) {
-                        char coord[3] = { 'a' + j, '1' + i, '\0' };
-                        if (pintarBranco(jogo, coord) == 0) {
-                            alteracoes++;
-                        }
-                    }
-                }
-            }
-        }
-
-        // Verifica se está resolvido (sem letras minúsculas)
-        resolvido = 1;
-        for (int i = 0; i < jogo->linhas && resolvido; i++) {
-            for (int j = 0; j < jogo->colunas && resolvido; j++) {
-                if (islower(jogo->tabuleiro[i][j])) {
-                    resolvido = 0;
-                }
-            }
-        }
-
-        // Se o jogo está resolvido e é válido
-        if (resolvido && verificarRestricoes(jogo) == 0) {
-            printf("\nSolução encontrada com %d alterações:\n", totalAlteracoes + alteracoes);
-            freeJogo(jogoOriginal);
-            return 0;
-        } else if (resolvido) {
-            // Solução inválida
-            resolvido = 0;
-        }
-
-        totalAlteracoes += alteracoes;
-        iteracoes++;
-
-    } while (!resolvido && alteracoes > 0 && iteracoes < maxIteracoes);
-
-    // Se não resolveu com regras determinísticas
-    printf("Não foi possível resolver apenas com regras determinísticas. Iniciando backtracking...\n");
-    printf("Usando backtracking para tentar resolver...\n");
-        
-    restaurarJogo(jogo, jogoOriginal);
-    freeJogo(jogoOriginal);
-        
-    if (backtrackingResolver(jogo) == 0) {
-        return 0;
     }
+    
+    printf("Total de movimentos desfeitos: %d\n", movimentosDesfeitos);
+    printf("Tabuleiro resetado para o estado inicial.\n\n");
+    
+    // Verificar se realmente está no estado inicial (todas minúsculas)
+    for (int i = 0; i < jogo->linhas; i++) {
+        for (int j = 0; j < jogo->colunas; j++) {
+            if (jogo->tabuleiro[i][j] != tolower(jogo->tabuleiro[i][j]) && 
+                jogo->tabuleiro[i][j] != '#') {
+                printf("Erro: Tabuleiro não está no estado inicial após reset.\n");
+                return -1;
+            }
+        }
+    }
+    
+    // Fase 2: Resolver usando backtracking
+    printf("Iniciando resolução por backtracking...\n");
+    
+    // Criar uma cópia do jogo para não afetar o original durante tentativas
+    Jogo *jogoTentativa = copiarJogo(jogo);
+    if (!jogoTentativa) {
+        printf("Erro ao criar cópia do jogo.\n");
+        return -1;
+    }
+    
+    // Chamar função de backtracking
+    int resultado = backtrackingResolver(jogoTentativa);
+    
+    if (resultado == 1) {
+        // Sucesso! Copiar solução de volta para o jogo original
+        printf("Solução encontrada! Aplicando ao jogo...\n");
         
-    printf("Não foi possível encontrar uma solução.\n");
-    return -1;
+        // Aplicar cada movimento encontrado ao jogo original
+        for (int i = 0; i < jogo->linhas; i++) {
+            for (int j = 0; j < jogo->colunas; j++) {
+                char estadoOriginal = jogo->tabuleiro[i][j];
+                char estadoSolucao = jogoTentativa->tabuleiro[i][j];
+                
+                // Se o estado mudou, registrar o movimento
+                if (estadoOriginal != estadoSolucao) {
+                    jogo->tabuleiro[i][j] = estadoSolucao;
+                    registarMovimento(jogo, i, j, estadoOriginal);
+                }
+            }
+        }
+        
+        printf("Jogo resolvido com sucesso!\n");
+        
+        // Verificar se a solução está correta
+        if (verificarVitoria(jogo)) {
+            printf("Verificação: Solução válida!\n");
+            // Limpar jogo temporário
+            freeJogo(jogoTentativa);
+            return 0; // Retorna 0 para que o main desenhe o jogo e verifique vitória
+        } else {
+            printf("Aviso: Solução pode não estar completamente correta.\n");
+        }
+        
+    } else if (resultado == 0) {
+        printf("Nenhuma solução encontrada para este tabuleiro.\n");
+        // Limpar jogo temporário
+        freeJogo(jogoTentativa);
+        return -1; // Retorna -1 para indicar falha
+    } else {
+        printf("Erro durante a resolução do jogo.\n");
+        // Limpar jogo temporário
+        freeJogo(jogoTentativa);
+        return -1; // Retorna -1 para indicar erro
+    }
+}
+
+// Função auxiliar melhorada para backtracking
+int backtrackingResolver(Jogo *jogo) {
+    if (!jogo) return -1;
+    
+    // Verificar se o jogo já está resolvido
+    if (verificarVitoria(jogo)) {
+        return 1; // Solução encontrada
+    }
+    
+    // Encontrar a próxima casa vazia (minúscula) para processar
+    for (int i = 0; i < jogo->linhas; i++) {
+        for (int j = 0; j < jogo->colunas; j++) {
+            char celula = jogo->tabuleiro[i][j];
+            
+            // Se é uma letra minúscula, podemos tentar pintá-la ou riscá-la
+            if (celula >= 'a' && celula <= 'z') {
+                
+                // Tentar pintar de branco (maiúscula)
+                char estadoOriginal = jogo->tabuleiro[i][j];
+                jogo->tabuleiro[i][j] = toupper(celula);
+                
+                // Verificar se este movimento é válido
+                if (movimentoValido(jogo, i, j)) {
+                    // Recursão: tentar resolver o resto
+                    int resultado = backtrackingResolver(jogo);
+                    if (resultado == 1) {
+                        return 1; // Solução encontrada
+                    }
+                }
+                
+                // Desfazer movimento (pintar de branco)
+                jogo->tabuleiro[i][j] = estadoOriginal;
+                
+                // Tentar riscar (#)
+                jogo->tabuleiro[i][j] = '#';
+                
+                // Verificar se este movimento é válido
+                if (movimentoValido(jogo, i, j)) {
+                    // Recursão: tentar resolver o resto
+                    int resultado = backtrackingResolver(jogo);
+                    if (resultado == 1) {
+                        return 1; // Solução encontrada
+                    }
+                }
+                
+                // Desfazer movimento (riscar)
+                jogo->tabuleiro[i][j] = estadoOriginal;
+                
+                // Se nenhuma das opções funcionou, retornar falha
+                return 0;
+            }
+        }
+    }
+    
+    // Se chegamos aqui, todas as casas foram processadas
+    // Verificar se é uma solução válida
+    return verificarVitoria(jogo) ? 1 : 0;
 }
 
 
