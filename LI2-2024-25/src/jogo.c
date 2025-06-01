@@ -46,35 +46,35 @@ Jogo* carregarJogo(char *arquivo) {
 
     // Aloca memória para cada linha do tabuleiro e lê cada caractere
     for (int i = 0; i < jogo->linhas; i++) {
-        jogo->tabuleiro[i] = malloc((jogo->colunas + 1) * sizeof(char)); // +1 para '\0'
-        if (!jogo->tabuleiro[i]) {
-            printf("Erro na alocação de memória para a linha %d.\n", i);
-            for (int j = 0; j < i; j++) {
-                free(jogo->tabuleiro[j]);
-            }
-            free(jogo->tabuleiro);
-            free(jogo);
-            fclose(input);
-            return NULL;
+    jogo->tabuleiro[i] = malloc((jogo->colunas + 1) * sizeof(char)); // +1 para '\0'
+    if (!jogo->tabuleiro[i]) {
+        printf("Erro na alocação de memória para a linha %d.\n", i);
+        for (int j = 0; j < i; j++) {
+            free(jogo->tabuleiro[j]);
         }
-
-        // Lê cada carater individualmente
-        for (int j = 0; j < jogo->colunas; j++) {
-            int ch = fgetc(input);
-            if (ch == EOF || ch == '\n') {
-                if (j < jogo->colunas - 1) {
-                    j--;
-                    continue;
-                }
-            } else {
-                jogo->tabuleiro[i][j] = (char)ch;
-            }
-        }
-        jogo->tabuleiro[i][jogo->colunas] = '\0';
-
-        int ch;
-        while ((ch = fgetc(input)) != EOF && ch != '\n');
+        free(jogo->tabuleiro);
+        free(jogo);
+        fclose(input);
+        return NULL;
     }
+
+    for (int j = 0; j < jogo->colunas; j++) {
+        int ch = fgetc(input);
+        if (ch == EOF || ch == '\n') {
+            if (j < jogo->colunas - 1) {
+                j--;
+            }
+        } else {
+            jogo->tabuleiro[i][j] = (char)ch;
+        }
+    }
+    jogo->tabuleiro[i][jogo->colunas] = '\0';
+
+    int ch;
+    do {
+        ch = fgetc(input);
+    } while (ch != EOF && ch != '\n');
+}
 
     // Carrega o histórico de movimentos, se existir
     carregarHistoricoMovimentos(input, jogo);
@@ -106,26 +106,25 @@ void carregarHistoricoMovimentos(FILE *input, Jogo *jogo) {
     }
     
     // Lê cada movimento do histórico
-    for (int i = 0; i < numMovimentos; i++) {
+    int erroLeitura = 0;
+    for (int i = 0; i < numMovimentos && !erroLeitura; i++) {
         int linha, coluna;
         char estadoAnterior;
-        
+
         if (fscanf(input, "%d %d %c\n", &linha, &coluna, &estadoAnterior) == 3) {
             Movimento *novoMovimento = malloc(sizeof(Movimento));
             if (!novoMovimento) {
                 printf("Erro na alocação de memória para o movimento %d.\n", i);
-                continue;
+            } else {
+                novoMovimento->linha = linha;
+                novoMovimento->coluna = coluna;
+                novoMovimento->estadoAnterior = estadoAnterior;
+                novoMovimento->proximo = NULL;
+                movimentosTemp[i] = novoMovimento;
             }
-            
-            novoMovimento->linha = linha;
-            novoMovimento->coluna = coluna;
-            novoMovimento->estadoAnterior = estadoAnterior;
-            novoMovimento->proximo = NULL;
-            
-            movimentosTemp[i] = novoMovimento;
         } else {
             printf("Erro ao ler o movimento %d do histórico.\n", i);
-            break;
+            erroLeitura = 1;
         }
     }
     
@@ -847,29 +846,32 @@ Jogo* copiarJogo(Jogo* original) {
 
 void restaurarJogo(Jogo* destino, Jogo* origem) {
     if (!destino || !origem) return;
-    
+
     // Copiar tabuleiro
     for (int i = 0; i < destino->linhas; i++) {
         strcpy(destino->tabuleiro[i], origem->tabuleiro[i]);
     }
-    
+
     // Copiar histórico
     freeHistoricoMovimentos(destino->historicoMovimentos);
     destino->historicoMovimentos = NULL;
-    
+
     Movimento *orig = origem->historicoMovimentos;
     Movimento **dest = &(destino->historicoMovimentos);
-    
-    while (orig) {
-        *dest = malloc(sizeof(Movimento));
-        if (!*dest) break;
-        
-        (*dest)->linha = orig->linha;
-        (*dest)->coluna = orig->coluna;
-        (*dest)->estadoAnterior = orig->estadoAnterior;
-        (*dest)->proximo = NULL;
-        
-        dest = &((*dest)->proximo);
+    int falhaAloc = 0;
+
+    while (orig && !falhaAloc) {
+        Movimento *novo = malloc(sizeof(Movimento));
+        if (!novo) {
+            falhaAloc = 1;
+        } else {
+            novo->linha = orig->linha;
+            novo->coluna = orig->coluna;
+            novo->estadoAnterior = orig->estadoAnterior;
+            novo->proximo = NULL;
+            *dest = novo;
+            dest = &((*dest)->proximo);
+        }
         orig = orig->proximo;
     }
 }
@@ -877,40 +879,29 @@ void restaurarJogo(Jogo* destino, Jogo* origem) {
 // Função auxiliar para verificar se um movimento é válido
 int movimentoValido(Jogo *jogo, int linha, int coluna) {
     if (!jogo) return 0;
-    
+
     char celula = jogo->tabuleiro[linha][coluna];
-    
+
     if (celula >= 'A' && celula <= 'Z') {
-        // Verificar regra: apenas uma maiúscula de cada tipo por linha/coluna
         if (existeDuplicadoNaLinha(jogo, linha, coluna, celula)) return 0;
         if (existeDuplicadoNaColuna(jogo, coluna, linha, celula)) return 0;
     } else if (celula == '#') {
-        // Verificar regra: vizinhos de casa riscada devem ser brancos
         int vizinhos[][2] = {{-1,0}, {1,0}, {0,-1}, {0,1}};
-        
         for (int v = 0; v < 4; v++) {
             int ni = linha + vizinhos[v][0];
             int nj = coluna + vizinhos[v][1];
-            
+
             if (ni >= 0 && ni < jogo->linhas && nj >= 0 && nj < jogo->colunas) {
-                char vizinho = jogo->tabuleiro[ni][nj]; 
-                
-                // Se o vizinho não é maiúscula nem riscado, e é uma letra
-                if (vizinho >= 'a' && vizinho <= 'z') {
-                    // Temporariamente não consideramos inválido ainda
-                    // pois o vizinho pode ser processado depois
-                    continue;
-                } else if (vizinho == '#') {
-                    return 0; // Violação: dois riscados adjacentes
+                char vizinho = jogo->tabuleiro[ni][nj];
+                int ignorar = (vizinho >= 'a' && vizinho <= 'z');
+                if (!ignorar && vizinho == '#') {
+                    return 0;
                 }
             }
         }
     }
-    
-    // Verificação básica de conectividade pode ser muito cara aqui
-    // Melhor fazer verificação completa apenas no final
-    
-    return 1; // Movimento parece válido
+
+    return 1;
 }
 
 int resolverJogo(Jogo *jogo) {
@@ -1180,32 +1171,30 @@ int processarComandos(Jogo **jogo, char *comando) {
         // Inicia o agrupamento de movimentos
         iniciarAgrupamentoMovimentos(*jogo);
         
+        int resolvido = 0;
         do {
             printf("\n--- Iteração %d ---\n", iteracao);
             
-            // Chama ajudar() SEM reiniciar o agrupamento
             alteracoesNaIteracao = ajudar(*jogo);
             
             if (alteracoesNaIteracao > 0) {
                 totalAlteracoes += alteracoesNaIteracao;
                 printf("Alterações feitas nesta iteração: %d\n", alteracoesNaIteracao);
-                
-                // Desenha o tabuleiro após cada iteração com alterações
+
                 printf("\nTabuleiro após iteração %d:\n", iteracao);
                 desenhaJogo(*jogo);
-                
-                // Verifica se o jogo foi completamente resolvido
+
                 if (verificarVitoria(*jogo)) {
                     printf("Jogo completamente resolvido!\n");
-                    break;
+                    resolvido = 1;  // Encerrar o loop
                 }
-                
+
                 iteracao++;
             } else {
                 printf("Nenhuma alteração possível nesta iteração.\n");
             }
-            
-        } while (alteracoesNaIteracao > 0);
+
+        } while (alteracoesNaIteracao > 0 && !resolvido);
         
         // Finaliza o agrupamento de movimentos
         finalizarAgrupamentoMovimentos(*jogo);
