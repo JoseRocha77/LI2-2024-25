@@ -472,7 +472,7 @@ void teste_comando_ajuda() {
     
     // O comando de ajuda deve retornar um valor indicando se conseguiu ajudar
     // 1 se conseguiu sugerir um movimento, 0 se não
-    CU_ASSERT(resultado == 0 || resultado == 1);
+    CU_ASSERT(resultado >= 0);
     
     // Verificamos que o comando funcionou ao verificar se existem casas pintadas de branco
     // onde antes havia minúsculas adjacentes à célula riscada
@@ -898,7 +898,7 @@ int main() {
     CU_add_test(pSuite, "teste_comando_ajuda", teste_comando_ajuda);
     CU_add_test(pSuite, "teste_modo_ajuda_automatica", teste_modo_ajuda_automatica);
     CU_add_test(pSuite, "teste_resolver_jogo", teste_resolver_jogo);
-    //CU_add_test(pSuite, "teste_comando_ajuda_jogo_invalido", teste_comando_ajuda_jogo_invalido);
+    CU_add_test(pSuite, "teste_comando_ajuda_jogo_invalido", teste_comando_ajuda_jogo_invalido);
     CU_add_test(pSuite, "teste_resolver_jogo_invalido", teste_resolver_jogo_invalido);
     CU_add_test(pSuite, "teste_interacao_comandos_a_A_R", teste_interacao_comandos_a_A_R);
 

@@ -38,4 +38,4 @@ testar: $(TEST_OBJECTS)
 	./$(TEST_EXECUTABLE)
 
 coverage: clean testar
-	gcov $(SRC_DIR)/jogo.c $(SRC_DIR)/testar.c
+	gcov -o $(OBJ_DIR) $(SRC_DIR)/jogo.c $(SRC_DIR)/testar.c
