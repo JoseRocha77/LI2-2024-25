@@ -299,45 +299,58 @@ int desfazerMovimento(Jogo *jogo) {
 
     Movimento *ultimoMovimento = jogo->historicoMovimentos;
     
-    // Verifica se é um movimento de grupo
-    if (ultimoMovimento->linha == -1 && ultimoMovimento->coluna == -1 && ultimoMovimento->estadoAnterior == 'G') { // <---------
-        printf("Desfazendo grupo de movimentos...\n");
+    // Verifica se é um movimento de grupo (gerado pelo comando 'A')
+    if (ultimoMovimento->linha == -1 && ultimoMovimento->coluna == -1 && 
+        ultimoMovimento->estadoAnterior == 'A') {
+        
+        printf("A desfazer todos os movimentos da ajuda automática...\n");
         
         // Remove o movimento de grupo do histórico principal
         jogo->historicoMovimentos = ultimoMovimento->proximo;
         
-        // Desfaz todos os movimentos no grupo
-        Movimento *movimentoGrupo = ultimoMovimento->grupoInterno;
+        // Conta quantos movimentos serão desfeitos
         int contadorMovimentos = 0;
+        Movimento *temp = ultimoMovimento->grupoInterno;
+        while (temp != NULL) {
+            contadorMovimentos++;
+            temp = temp->proximo;
+        }
+        
+        // Desfaz todos os movimentos no grupo (que já estão na ordem correta)
+        Movimento *movimentoGrupo = ultimoMovimento->grupoInterno;
         
         while (movimentoGrupo != NULL) {
-            // Restaura o estado anterior
+            // Restaura o estado anterior da célula
             jogo->tabuleiro[movimentoGrupo->linha][movimentoGrupo->coluna] = movimentoGrupo->estadoAnterior;
             
+            printf("  Desfeito: (%c,%d) voltou para '%c'\n", 
+                   movimentoGrupo->coluna + 'a',
+                   movimentoGrupo->linha + 1,
+                   movimentoGrupo->estadoAnterior);
+            
             // Passa para o próximo movimento do grupo
-            Movimento *temp = movimentoGrupo;
+            Movimento *tempMovimento = movimentoGrupo;
             movimentoGrupo = movimentoGrupo->proximo;
-            free(temp);
-            contadorMovimentos++;
+            free(tempMovimento);
         }
         
         free(ultimoMovimento); // Liberta o movimento de grupo
-        printf("Grupo de %d movimentos desfeito com sucesso.\n", contadorMovimentos);
+        printf("Todos os %d movimentos da ajuda automática foram desfeitos.\n", contadorMovimentos);
+        printf("Tabuleiro restaurado ao estado anterior ao comando 'A'.\n");
         return 0;
     }
     
-    // Caso seja um movimento normal - código original mantido
+    // Caso seja um movimento normal individual
     char valorAtual = jogo->tabuleiro[ultimoMovimento->linha][ultimoMovimento->coluna];
     jogo->tabuleiro[ultimoMovimento->linha][ultimoMovimento->coluna] = ultimoMovimento->estadoAnterior;
     
-    printf(
-        "Movimento desfeito na posição (%c,%d): '%c' voltou para '%c'.\n",
-        ultimoMovimento->coluna + 'a',
-        ultimoMovimento->linha + 1,
-        valorAtual,
-        ultimoMovimento->estadoAnterior
-    );
+    printf("Movimento desfeito na posição (%c,%d): '%c' voltou para '%c'.\n",
+           ultimoMovimento->coluna + 'a',
+           ultimoMovimento->linha + 1,
+           valorAtual,
+           ultimoMovimento->estadoAnterior);
 
+    // Remove o movimento do histórico
     jogo->historicoMovimentos = ultimoMovimento->proximo;
     free(ultimoMovimento);
     return 0;
@@ -641,6 +654,7 @@ void finalizarAgrupamentoMovimentos(Jogo *jogo) {
     // Se não houver movimentos no grupo, apenas desativa o agrupamento
     if (!jogo->grupoMovimentos) {
         jogo->agrupandoMovimentos = 0;
+        printf("Agrupamento finalizado (nenhum movimento realizado).\n");
         return;
     }
     
@@ -653,14 +667,24 @@ void finalizarAgrupamentoMovimentos(Jogo *jogo) {
     
     movimentoGrupo->linha = -1;  // Valor especial para indicar que é um grupo
     movimentoGrupo->coluna = -1;
-    movimentoGrupo->estadoAnterior = 'G';  // 'G' de grupo
+    movimentoGrupo->estadoAnterior = 'A';  // 'A' de ajuda automática
     movimentoGrupo->proximo = jogo->historicoMovimentos;
-    
-    // Anexa o grupo de movimentos ao movimento especial
+    movimentoGrupo->grupoInterno = NULL; // Inicializar como NULL
     movimentoGrupo->grupoInterno = jogo->grupoMovimentos;
     
     // Adiciona o movimento especial ao histórico
     jogo->historicoMovimentos = movimentoGrupo;
+    
+    // Conta os movimentos para feedback
+    int numMovimentos = 0;
+    Movimento *temp = jogo->grupoMovimentos;
+    while (temp != NULL) {
+        numMovimentos++;
+        temp = temp->proximo;
+    }
+    
+    printf("Agrupamento finalizado: %d movimentos registados como grupo.\n", numMovimentos);
+    printf("Use 'd' para desfazer todos os movimentos deste grupo de uma vez.\n");
     
     // Reinicializa o estado de agrupamento
     jogo->agrupandoMovimentos = 0;
@@ -670,99 +694,95 @@ void finalizarAgrupamentoMovimentos(Jogo *jogo) {
 int ajudar(Jogo *jogo) {
     if (!jogo) return -1;
     
-    // Inicia o agrupamento de movimentos
-    iniciarAgrupamentoMovimentos(jogo);
-    
     int alteracoesFeitas = 0;
     
     // 1. Regra: riscar letras iguais a uma branca na linha ou coluna
     for (int i = 0; i < jogo->linhas; i++) {
         for (int j = 0; j < jogo->colunas; j++) {
             char atual = jogo->tabuleiro[i][j];
-            if (atual >= 'A' && atual <= 'Z') { // Letra branca
-                // Verifica linha
+            if (atual >= 'A' && atual <= 'Z') { // Letra branca (maiúscula)
+                char letraMinuscula = atual + 32; // Converte para minúscula correspondente
+                
+                // Verifica linha - riscar todas as letras minúsculas iguais na mesma linha
                 for (int k = 0; k < jogo->colunas; k++) {
-                    if (jogo->tabuleiro[i][k] == atual + 32) {
+                    if (k != j && jogo->tabuleiro[i][k] == letraMinuscula) {
                         char coord[3] = { 'a' + k, '1' + i, '\0' };
-                        printf("Ajuda: riscar %s (igual a branca %c na linha)\n", coord, atual);
+                        printf("Ajuda: riscar %s (igual a branca %c na linha %d)\n", coord, atual, i+1);
                         riscar(jogo, coord);
-                        alteracoesFeitas = 1;
+                        alteracoesFeitas++;
                     }
                 }
                 
-                // Verifica coluna
+                // Verifica coluna - riscar todas as letras minúsculas iguais na mesma coluna
                 for (int k = 0; k < jogo->linhas; k++) {
-                    if (jogo->tabuleiro[k][j] == atual + 32) {
+                    if (k != i && jogo->tabuleiro[k][j] == letraMinuscula) {
                         char coord[3] = { 'a' + j, '1' + k, '\0' };
-                        printf("Ajuda: riscar %s (igual a branca %c na coluna)\n", coord, atual);
+                        printf("Ajuda: riscar %s (igual a branca %c na coluna %c)\n", coord, atual, 'a'+j);
                         riscar(jogo, coord);
-                        alteracoesFeitas = 1;
+                        alteracoesFeitas++;
                     }
                 }
             }
         }
+    }
+
+    // Se já fizemos alterações, retornar para não aplicar outras regras na mesma iteração
+    if (alteracoesFeitas > 0) {
+        return alteracoesFeitas;
     }
 
     // 2. Regra: pintar de branco todas as casas vizinhas de uma casa riscada
-    if (!alteracoesFeitas) {
-        for (int i = 0; i < jogo->linhas; i++) {
-            for (int j = 0; j < jogo->colunas; j++) {
-                if (jogo->tabuleiro[i][j] == '#') {
-                    int alterou = 0;
-                    int di[] = {-1, 1, 0, 0};
-                    int dj[] = {0, 0, -1, 1};
-                    for (int d = 0; d < 4; d++) {
-                        int ni = i + di[d], nj = j + dj[d];
-                        if (ni >= 0 && ni < jogo->linhas && nj >= 0 && nj < jogo->colunas) {
-                            char viz = jogo->tabuleiro[ni][nj];
-                            if (viz >= 'a' && viz <= 'z') {
-                                char coord[3] = { 'a' + nj, '1' + ni, '\0' };
-                                pintarBranco(jogo, coord);
-                                alterou = 1;
-                            }
+    for (int i = 0; i < jogo->linhas; i++) {
+        for (int j = 0; j < jogo->colunas; j++) {
+            if (jogo->tabuleiro[i][j] == '#') {
+                int di[] = {-1, 1, 0, 0};
+                int dj[] = {0, 0, -1, 1};
+                for (int d = 0; d < 4; d++) {
+                    int ni = i + di[d], nj = j + dj[d];
+                    if (ni >= 0 && ni < jogo->linhas && nj >= 0 && nj < jogo->colunas) {
+                        char viz = jogo->tabuleiro[ni][nj];
+                        if (viz >= 'a' && viz <= 'z') {
+                            char coord[3] = { 'a' + nj, '1' + ni, '\0' };
+                            printf("Ajuda: pintar %s (vizinho de casa riscada em %c%d)\n", coord, 'a'+j, i+1);
+                            pintarBranco(jogo, coord);
+                            alteracoesFeitas++;
                         }
-                    }
-                    if (alterou) {
-                        printf("Ajuda: pintar casas vizinhas de (%c%d)\n", 'a'+j, i+1);
-                        alteracoesFeitas = 1;
-                        break;
                     }
                 }
             }
-            if (alteracoesFeitas) break;
         }
+    }
+
+    // Se já fizemos alterações, retornar
+    if (alteracoesFeitas > 0) {
+        return alteracoesFeitas;
     }
 
     // 3. Regra: pintar de branco casas que isolariam brancas se fossem riscadas
-    if (!alteracoesFeitas) {
-        for (int i = 0; i < jogo->linhas; i++) {
-            for (int j = 0; j < jogo->colunas; j++) {
-                char c = jogo->tabuleiro[i][j];
-                if (c >= 'a' && c <= 'z') {
-                    // Simula riscar esta casa
-                    char original = jogo->tabuleiro[i][j];
-                    jogo->tabuleiro[i][j] = '#';
-                    int resultado = verificarConectividadeBrancas(jogo);
-                    jogo->tabuleiro[i][j] = original;
+    for (int i = 0; i < jogo->linhas; i++) {
+        for (int j = 0; j < jogo->colunas; j++) {
+            char c = jogo->tabuleiro[i][j];
+            if (c >= 'a' && c <= 'z') {
+                // Simula riscar esta casa
+                char original = jogo->tabuleiro[i][j];
+                jogo->tabuleiro[i][j] = '#';
+                int resultado = verificarConectividadeBrancas(jogo);
+                jogo->tabuleiro[i][j] = original;
 
-                    if (resultado != 0) {
-                        char coord[3] = { 'a' + j, '1' + i, '\0' };
-                        printf("Ajuda: pintar de branco %s (evita isolamento)\n", coord);
-                        pintarBranco(jogo, coord);
-                        alteracoesFeitas = 1;
-                        break;
-                    }
+                if (resultado != 0) {
+                    char coord[3] = { 'a' + j, '1' + i, '\0' };
+                    printf("Ajuda: pintar de branco %s (evita isolamento)\n", coord);
+                    pintarBranco(jogo, coord);
+                    alteracoesFeitas++;
+                    // Retorna imediatamente após encontrar uma casa que evita isolamento
+                    return alteracoesFeitas;
                 }
             }
-            if (alteracoesFeitas) break;
         }
     }
-
-    // Finaliza o agrupamento (mesmo se não houve alterações)
-    finalizarAgrupamentoMovimentos(jogo);
     
-    if (!alteracoesFeitas) {
-        printf("Nenhuma jogada inferida disponível, faça uma jogada antes de usar o comando de ajuda.\n");
+    if (alteracoesFeitas == 0) {
+        printf("Nenhuma jogada inferida disponível no momento.\n");
     }
     
     return alteracoesFeitas;
@@ -943,7 +963,7 @@ int resolverJogo(Jogo *jogo) {
     int resultado = backtrackingResolver(jogoTentativa);
     
     if (resultado == 1) {
-        // Sucesso! Copiar solução de volta para o jogo original
+        // Sucesso: copiar solução de volta para o jogo original
         printf("Solução encontrada! Aplicando ao jogo...\n");
         
         // Aplicar cada movimento encontrado ao jogo original
@@ -952,7 +972,7 @@ int resolverJogo(Jogo *jogo) {
                 char estadoOriginal = jogo->tabuleiro[i][j];
                 char estadoSolucao = jogoTentativa->tabuleiro[i][j];
                 
-                // Se o estado mudou, registrar o movimento
+                // Se o estado mudou, registar o movimento
                 if (estadoOriginal != estadoSolucao) {
                     jogo->tabuleiro[i][j] = estadoSolucao;
                     registarMovimento(jogo, i, j, estadoOriginal);
@@ -965,21 +985,20 @@ int resolverJogo(Jogo *jogo) {
         // Verificar se a solução está correta
         if (verificarVitoria(jogo)) {
             printf("Verificação: Solução válida!\n");
-            // Limpar jogo temporário
             freeJogo(jogoTentativa);
-            return 0; // Retorna 0 para que o main desenhe o jogo e verifique vitória
+            return 0; // Retorna 0 para que a main desenhe o jogo e verifique vitória
         } else {
             printf("Aviso: Solução pode não estar completamente correta.\n");
+            freeJogo(jogoTentativa);
+            return -1; // Retorna -1 para indicar erro
         }
         
     } else if (resultado == 0) {
         printf("Nenhuma solução encontrada para este tabuleiro.\n");
-        // Limpar jogo temporário
         freeJogo(jogoTentativa);
-        return -1; // Retorna -1 para indicar falha
+        return -1; 
     } else {
         printf("Erro durante a resolução do jogo.\n");
-        // Limpar jogo temporário
         freeJogo(jogoTentativa);
         return -1; // Retorna -1 para indicar erro
     }
@@ -1045,7 +1064,7 @@ int backtrackingResolver(Jogo *jogo) {
 }
 
 
-// Nova função para verificar se o jogo está completamente resolvido
+// função para verificar se o jogo está completamente resolvido
 int verificarVitoria(Jogo *jogo) {
     if (!jogo) return 0;
     
@@ -1065,6 +1084,8 @@ int verificarVitoria(Jogo *jogo) {
     
     return 1; // Jogo resolvido e válido
 }
+
+
 
 // Função principal ===========================================================================================
 
@@ -1095,14 +1116,14 @@ int processarComandos(Jogo **jogo, char *comando) {
     if (comando[0] == 'l' && comando[1] == ' ') {
         char arquivo[100];
         if (sscanf(comando, "l %99s", arquivo) == 1) {
-            // Libera o jogo anterior se existir
+            // Liberta o jogo anterior se existir
             if (*jogo) {
                 for (int i = 0; i < (*jogo)->linhas; i++) {
                     free((*jogo)->tabuleiro[i]);
                 }
                 free((*jogo)->tabuleiro);
                 
-                // Libera a memória do histórico de movimentos
+                // Liberta a memória do histórico de movimentos
                 freeHistoricoMovimentos((*jogo)->historicoMovimentos);
                 
                 free(*jogo);
@@ -1115,7 +1136,7 @@ int processarComandos(Jogo **jogo, char *comando) {
         }
     }
 
-    // Para os demais comandos, precisamos verificar se o jogo existe
+    // Para os demais comandos, é necessário verificar se o jogo existe
     if (!(*jogo)) {
         printf("Jogo não carregado. Use 'l <arquivo>' para carregar um jogo.\n");
         return -1;
@@ -1132,7 +1153,7 @@ int processarComandos(Jogo **jogo, char *comando) {
         return verificarRestricoes(*jogo);
     }
 
-    // Verifica o comando "a" (ajudar)
+    // comando "a" (ajudar)
     if (strcmp(comando, "a") == 0) {
         if (!(*jogo)) {
             printf("Jogo não carregado. Use 'l <arquivo>' para carregar um jogo.\n");
@@ -1142,64 +1163,77 @@ int processarComandos(Jogo **jogo, char *comando) {
         return 0;
     }
 
-if (strcmp(comando, "A") == 0) {
-    if (!(*jogo)) {
-        printf("Jogo não carregado. Use 'l <arquivo>' para carregar um jogo.\n");
-        return -1;
-    }
-    
-    printf("Executando ajuda automática contínua...\n");
-    int totalAlteracoes = 0;
-    int iteracao = 1;
-    int alteracoesNaIteracao;
-    
-    do {
-        printf("\n--- Iteração %d ---\n", iteracao);
-        alteracoesNaIteracao = ajudar(*jogo);
+
+
+    // comando "A" (ajuda automatica)
+    if (strcmp(comando, "A") == 0) {
+        if (!(*jogo)) {
+            printf("Jogo não carregado. Use 'l <arquivo>' para carregar um jogo.\n");
+            return -1;
+        }
         
-        if (alteracoesNaIteracao > 0) {
-            totalAlteracoes += alteracoesNaIteracao;
-            printf("Alterações feitas nesta iteração: %d\n", alteracoesNaIteracao);
+        printf("Executando ajuda automática contínua...\n");
+        int totalAlteracoes = 0;
+        int iteracao = 1;
+        int alteracoesNaIteracao;
+        
+        // Inicia o agrupamento de movimentos
+        iniciarAgrupamentoMovimentos(*jogo);
+        
+        do {
+            printf("\n--- Iteração %d ---\n", iteracao);
             
-            // Desenha o tabuleiro após cada iteração com alterações
-            printf("\nTabuleiro após iteração %d:\n", iteracao);
-            desenhaJogo(*jogo);
+            // Chama ajudar() SEM reiniciar o agrupamento
+            alteracoesNaIteracao = ajudar(*jogo);
             
-            // Verifica se o jogo foi completamente resolvido
+            if (alteracoesNaIteracao > 0) {
+                totalAlteracoes += alteracoesNaIteracao;
+                printf("Alterações feitas nesta iteração: %d\n", alteracoesNaIteracao);
+                
+                // Desenha o tabuleiro após cada iteração com alterações
+                printf("\nTabuleiro após iteração %d:\n", iteracao);
+                desenhaJogo(*jogo);
+                
+                // Verifica se o jogo foi completamente resolvido
+                if (verificarVitoria(*jogo)) {
+                    printf("Jogo completamente resolvido!\n");
+                    break;
+                }
+                
+                iteracao++;
+            } else {
+                printf("Nenhuma alteração possível nesta iteração.\n");
+            }
+            
+        } while (alteracoesNaIteracao > 0);
+        
+        // Finaliza o agrupamento de movimentos
+        finalizarAgrupamentoMovimentos(*jogo);
+        
+        printf("\n=== Resumo da Ajuda Automática ===\n");
+        printf("Total de iterações executadas: %d\n", iteracao);
+        printf("Total de alterações realizadas: %d\n", totalAlteracoes);
+        
+        if (totalAlteracoes > 0) {
+            printf("Processo de ajuda automática concluído.\n");
+            
+            // Verifica o estado final do jogo
+            printf("\nA verificar estado final...\n");
             if (verificarVitoria(*jogo)) {
-                break;
+                printf("Parabéns! O jogo foi completamente resolvido!\n");
+            } else {
+                // Mostra se há violações
+                int violacoes = verificarRestricoes(*jogo);
+                if (violacoes == 0) {
+                    printf("Não há violações, mas o jogo ainda não está completo.\n");
+                }
             }
-            
-            iteracao++;
         } else {
-            printf("Nenhuma alteração possível nesta iteração.\n");
+            printf("Nenhuma alteração foi possível. O tabuleiro permanece inalterado.\n");
         }
         
-    } while (alteracoesNaIteracao > 0);
-    
-    printf("\n=== Resumo da Ajuda Automática ===\n");
-    printf("Total de iterações executadas: %d\n", iteracao);
-    printf("Total de alterações realizadas: %d\n", totalAlteracoes);
-    
-    if (totalAlteracoes > 0) {
-        printf("Processo de ajuda automática concluído.\n");
-        
-        // Verifica o estado final do jogo
-        printf("\nVerificando estado final...\n");
-        if (verificarVitoria(*jogo)) { 
-        } else {
-            
-            // Mostra se há violações
-            int violacoes = verificarRestricoes(*jogo);
-            if (violacoes == 0) {
-            }
-        }
-    } else {
-        printf("Nenhuma alteração foi possível. O tabuleiro permanece inalterado.\n");
+        return 0;
     }
-    
-    return 0;
-}
 
     // Comando para resolver automaticamente o jogo
     if (strcmp(comando, "R") == 0) {
