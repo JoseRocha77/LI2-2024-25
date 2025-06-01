@@ -42,41 +42,37 @@ void exibirMensagemVitoria(void) {
 
 int main(void) {
     Jogo *jogo = NULL;
+    int sair = 0;
 
     exibirMenuInicial();
 
-    char comando[100];  
-    while (1) {
+    char comando[100];
+    while (!sair) {
         printf("Digita um comando: ");
         if (!fgets(comando, sizeof(comando), stdin)) {
             printf("Erro ao ler comando.\n");
-            continue;
-        }
-        
-        // Remover newline
-        comando[strcspn(comando, "\n")] = 0;
-        
-        int resultado = processarComandos(&jogo, comando);
+        } else {
+            comando[strcspn(comando, "\n")] = 0;
 
-        if (jogo != NULL && strcmp(comando, "v") != 0 && resultado != -1 && resultado != 1) {
-            desenhaJogo(jogo);
+            int resultado = processarComandos(&jogo, comando);
 
-            if ( verificarVitoria(jogo)== 1) {
-                exibirMensagemVitoria();
+            if (jogo != NULL && strcmp(comando, "v") != 0 && resultado != -1 && resultado != 1) {
+                desenhaJogo(jogo);
 
-                freeJogo(jogo);
-                jogo = NULL;
-                
-                exibirMenuInicial();
+                if (verificarVitoria(jogo) == 1) {
+                    exibirMensagemVitoria();
+                    freeJogo(jogo);
+                    jogo = NULL;
+                    exibirMenuInicial();
+                }
+            }
+
+            if (resultado == 1) {
+                sair = 1;
             }
         }
-        
-        if (resultado == 1) {
-            break;
-        }
     }
-    
+
     freeJogo(jogo);
-    
     return 0;
 }
